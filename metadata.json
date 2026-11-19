@@ -1,0 +1,6 @@
+{
+  "name": "FitApp - Área do Aluno",
+  "description": "Aplicação mobile para acompanhamento de alunos de personal training, focada na visualização rápida de treinos, check-ins e objetivos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

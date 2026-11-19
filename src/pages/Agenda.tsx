@@ -7,9 +7,9 @@ export function Agenda() {
   const { openNotifications, totalUnreadCount } = useNotifications();
 
   return (
-    <div className="flex flex-col px-5 pt-4 pb-4 animate-in fade-in zoom-in-95 duration-300">
+    <>
       {/* HEADER */}
-      <header className="flex justify-between items-center mb-5">
+      <header className="flex justify-between items-center px-5 pt-[max(0.75rem,env(safe-area-inset-top))] sm:pt-8 pb-3 bg-black/90 backdrop-blur-xl sticky top-0 z-30 border-b border-zinc-900">
         <div className="flex items-center gap-3">
           <img
             src="/assets/aistudio/9CF5FBD1-65BF-4557-BF19-1F1A5C3032B1_b4e3ad3d.PNG"
@@ -43,6 +43,8 @@ export function Agenda() {
           </button>
         </div>
       </header>
+
+      <div className="flex flex-col px-5 pt-4 pb-6 animate-in fade-in duration-200">
 
       {/* STATS HEADER */}
       <div className="bg-[#0a0a0a] rounded-[20px] p-5 mb-4 border border-zinc-800/60">
@@ -194,6 +196,7 @@ export function Agenda() {
         </div>
       </div>
       
-    </div>
+      </div>
+    </>
   );
 }

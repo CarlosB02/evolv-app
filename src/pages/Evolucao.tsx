@@ -20,9 +20,9 @@ export function Evolucao() {
   useScrollToTop([activeArea, assessmentTab]);
 
   return (
-    <div className="flex flex-col px-5 pt-4 pb-10 animate-in fade-in zoom-in-95 duration-300">
+    <>
       {/* HEADER */}
-      <header className="flex justify-between items-center mb-4">
+      <header className="flex justify-between items-center px-5 pt-[max(0.75rem,env(safe-area-inset-top))] sm:pt-8 pb-3 bg-black/90 backdrop-blur-xl sticky top-0 z-30 border-b border-zinc-900">
         <div className="flex items-center gap-3">
           <img
             src="/assets/aistudio/9CF5FBD1-65BF-4557-BF19-1F1A5C3032B1_b4e3ad3d.PNG"
@@ -60,6 +60,8 @@ export function Evolucao() {
           </button>
         </div>
       </header>
+
+      <div className="flex flex-col px-5 pt-4 pb-6 animate-in fade-in duration-200">
 
       {/* NAVEGAÇÃO PRINCIPAL: AVALIAÇÕES FÍSICAS vs TREINO */}
       <div className="grid grid-cols-2 p-1 rounded-2xl bg-[#0a0a0a] border border-zinc-800/80 mb-3">
@@ -132,6 +134,7 @@ export function Evolucao() {
       ) : (
         <TrainingEvolutionTab />
       )}
-    </div>
+      </div>
+    </>
   );
 }

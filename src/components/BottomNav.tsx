@@ -7,7 +7,7 @@ interface BottomNavProps {
 
 export function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
   return (
-    <nav className="absolute bottom-0 left-0 right-0 bg-black/90 backdrop-blur-xl border-t border-zinc-900 px-6 py-3 z-50 sm:rounded-b-[36px]">
+    <nav className="shrink-0 w-full bg-black/90 backdrop-blur-xl border-t border-zinc-900 px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] z-40 sm:rounded-b-[36px]">
       <div className="flex justify-between items-center max-w-sm mx-auto">
         <button 
           onClick={() => setActiveTab('home')}

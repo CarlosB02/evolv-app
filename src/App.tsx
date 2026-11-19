@@ -57,11 +57,11 @@ function MainApp() {
   };
 
   return (
-    <div className={`min-h-screen transition-colors duration-200 flex items-center justify-center font-sans antialiased overflow-hidden selection:bg-orange-500/30 ${
+    <div className={`h-[100dvh] sm:h-auto sm:min-h-screen w-full transition-colors duration-200 flex sm:items-center sm:justify-center font-sans antialiased overflow-hidden selection:bg-orange-500/30 ${
       isLight ? 'bg-slate-200' : 'bg-black'
     }`}>
       {/* Mobile Device Wrapper */}
-      <div className={`w-full max-w-[414px] h-[100dvh] sm:h-[896px] app-device-wrapper sm:rounded-[48px] overflow-hidden flex flex-col relative sm:border-[12px] [transform:translateZ(0)] transition-all duration-200 ${
+      <div className={`w-full sm:max-w-[414px] h-[100dvh] sm:h-[896px] app-device-wrapper sm:rounded-[48px] overflow-hidden flex flex-col relative sm:border-[12px] [transform:translateZ(0)] transition-all duration-200 ${
         isLight
           ? 'light-theme bg-[#f8fafc] sm:border-slate-300 ring-1 ring-slate-300 shadow-[0_15px_50px_rgba(0,0,0,0.12)]'
           : 'bg-black sm:border-zinc-900 ring-1 ring-zinc-800 shadow-[0_0_60px_rgba(0,0,0,0.3)]'
@@ -74,8 +74,8 @@ function MainApp() {
 
         <div
           data-app-scroll-container="true"
-          className={`flex-1 overflow-y-auto hide-scrollbar relative scroll-smooth ${
-          isNotificationsOpen || isCommunityOpen ? 'pb-0' : 'pb-24'
+          className={`flex-1 min-h-0 overflow-y-auto overscroll-y-contain hide-scrollbar relative scroll-smooth ${
+          isNotificationsOpen || isCommunityOpen ? 'pb-0' : 'pb-4'
         }`}>
           {isLoggedOut ? (
             <div className="flex flex-col items-center justify-center min-h-[70vh] px-8 text-center animate-in fade-in zoom-in-95 duration-200">

@@ -1,23 +1,29 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   ChevronLeft, 
   Flame, 
-  Shield, 
+  Beef,
+  Wheat,
   Droplet, 
   ChevronDown, 
   ChevronRight, 
   Coffee, 
   Utensils, 
   Apple, 
+  Moon,
   Bell, 
   Plus, 
   Calendar, 
   FileText, 
   X,
-  User
+  ShoppingCart
 } from 'lucide-react';
-import { useProfile } from '../context/ProfileContext';
 import { useNotifications } from '../context/NotificationContext';
+import {
+  ShoppingIngredient,
+  ShoppingListModal,
+  getInitialShoppingIngredients,
+} from '../components/diet/ShoppingListModal';
 
 export interface RefeicaoItem {
   id: string;
@@ -38,8 +44,65 @@ interface RefeicoesViewProps {
 }
 
 export function RefeicoesView({ onBack, onSelectMeal, planName }: RefeicoesViewProps) {
-  const { openProfile } = useProfile();
   const { openNotifications, totalUnreadCount } = useNotifications();
+  const planStorageKey = `evolv_shopping_list_${(planName || 'default').toLowerCase().replace(/\s+/g, '_')}`;
+
+  const [shoppingItems, setShoppingItems] = useState<ShoppingIngredient[]>(() => {
+    try {
+      const saved = localStorage.getItem(planStorageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // Fallback to default ingredients
+    }
+    return getInitialShoppingIngredients(planName);
+  });
+
+  const [shoppingDays, setShoppingDays] = useState<number>(3);
+  const [isShoppingListOpen, setIsShoppingListOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(planStorageKey, JSON.stringify(shoppingItems));
+    } catch {
+      // Ignore storage errors
+    }
+  }, [planStorageKey, shoppingItems]);
+
+  const remainingShoppingCount = shoppingItems.filter((item) => !item.checked).length;
+
+  const handleToggleShoppingItem = (id: string) => {
+    setShoppingItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, checked: !item.checked } : item))
+    );
+  };
+
+  const handleAddCustomShoppingItem = (name: string, qtyLabel: string) => {
+    setShoppingItems((prev) => [
+      ...prev,
+      {
+        id: `custom-${Date.now()}`,
+        name,
+        baseQuantity: 1,
+        unit: 'un',
+        category: 'extras',
+        checked: false,
+        isCustom: true,
+        customQtyLabel: qtyLabel,
+      },
+    ]);
+  };
+
+  const handleRemoveShoppingItem = (id: string) => {
+    setShoppingItems((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleResetCheckedShopping = () => {
+    setShoppingItems((prev) => prev.map((item) => ({ ...item, checked: false })));
+  };
+
   const [meals, setMeals] = useState<RefeicaoItem[]>([
     {
       id: '1',
@@ -105,15 +168,15 @@ export function RefeicoesView({ onBack, onSelectMeal, planName }: RefeicoesViewP
   const getMealIcon = (type: RefeicaoItem['iconType']) => {
     switch (type) {
       case 'coffee':
-        return <Coffee className="w-3.5 h-3.5 text-zinc-400" />;
+        return <Coffee className="w-3.5 h-3.5 text-amber-400 shrink-0" strokeWidth={2.2} />;
       case 'lunch':
-        return <Utensils className="w-3.5 h-3.5 text-zinc-400" />;
+        return <Utensils className="w-3.5 h-3.5 text-[#F77F00] shrink-0" strokeWidth={2.2} />;
       case 'snack':
-        return <Apple className="w-3.5 h-3.5 text-zinc-400" />;
+        return <Apple className="w-3.5 h-3.5 text-emerald-400 shrink-0" strokeWidth={2.2} />;
       case 'dinner':
-        return <Bell className="w-3.5 h-3.5 text-zinc-400" />;
+        return <Moon className="w-3.5 h-3.5 text-indigo-400 shrink-0" strokeWidth={2.2} />;
       default:
-        return <Utensils className="w-3.5 h-3.5 text-zinc-400" />;
+        return <Utensils className="w-3.5 h-3.5 text-sky-400 shrink-0" strokeWidth={2.2} />;
     }
   };
 
@@ -153,10 +216,11 @@ export function RefeicoesView({ onBack, onSelectMeal, planName }: RefeicoesViewP
   });
 
   return (
-    <div className="flex flex-col gap-4 px-5 pt-4 pb-12 animate-in fade-in zoom-in-95 duration-200">
-      {/* HEADER SUPERIOR COM BOTÃO VOLTAR */}
-      <div className="flex justify-between items-center mb-1">
+    <>
+      {/* HEADER SUPERIOR STICKY COM BOTÃO VOLTAR + CARRINHO DE COMPRAS */}
+      <header className="flex justify-between items-center px-5 pt-[max(0.75rem,env(safe-area-inset-top))] sm:pt-8 pb-3 bg-black/90 backdrop-blur-xl sticky top-0 z-30 border-b border-zinc-900">
         <button 
+          type="button"
           onClick={onBack}
           className="flex items-center gap-1 text-zinc-400 hover:text-white transition-colors cursor-pointer"
         >
@@ -170,6 +234,7 @@ export function RefeicoesView({ onBack, onSelectMeal, planName }: RefeicoesViewP
 
         <div className="flex gap-4">
           <button 
+            type="button"
             onClick={() => openNotifications('geral')}
             className="relative text-orange-500 transition-transform hover:scale-110 cursor-pointer" 
             aria-label="Notificações"
@@ -183,22 +248,29 @@ export function RefeicoesView({ onBack, onSelectMeal, planName }: RefeicoesViewP
             )}
           </button>
           <button 
-            onClick={openProfile}
+            type="button"
+            onClick={() => setIsShoppingListOpen(true)}
             className="relative text-orange-500 transition-transform hover:scale-110 cursor-pointer" 
-            aria-label="Perfil"
-            title="Abrir Perfil"
+            aria-label="Lista de Compras"
+            title="Abrir Lista de Compras"
           >
-            <User className="w-[20px] h-[20px]" strokeWidth={2} />
+            <ShoppingCart className="w-[20px] h-[20px]" strokeWidth={2} />
+            {remainingShoppingCount > 0 && (
+              <span className="absolute -top-1.5 -right-2 bg-orange-500 text-[#0a0a0a] text-[9px] font-bold min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center border-2 border-black">
+                {remainingShoppingCount > 99 ? '99+' : remainingShoppingCount}
+              </span>
+            )}
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* 1. PAINEL DE MACROS DIÁRIOS (IDÊNTICO À IMAGEM DE REFERÊNCIA) */}
+      <div className="flex flex-col gap-4 px-5 pt-4 pb-8 animate-in fade-in duration-200">
+      {/* 1. PAINEL DE MACROS DIÁRIOS */}
       <div className="bg-[#0a0a0a] rounded-[22px] p-4 border border-zinc-800/60 shadow-lg">
         <div className="grid grid-cols-4 gap-2 text-center">
           {/* Calorias */}
           <div className="flex flex-col items-center gap-1.5">
-            <Flame className="w-4 h-4 text-zinc-300" strokeWidth={1.8} />
+            <Flame className="w-4 h-4 text-[#F77F00]" strokeWidth={2.2} />
             <span className="text-[11px] text-zinc-400 font-normal">Calorias</span>
             <div className="text-[11px] font-medium leading-tight">
               <span className="text-white font-bold text-[12px]">1.850</span>
@@ -208,7 +280,7 @@ export function RefeicoesView({ onBack, onSelectMeal, planName }: RefeicoesViewP
 
           {/* Proteínas */}
           <div className="flex flex-col items-center gap-1.5">
-            <Shield className="w-4 h-4 text-zinc-300" strokeWidth={1.8} />
+            <Beef className="w-4 h-4 text-rose-400" strokeWidth={2.2} />
             <span className="text-[11px] text-zinc-400 font-normal">Proteínas</span>
             <div className="text-[11px] font-medium leading-tight">
               <span className="text-white font-bold text-[12px]">130 g</span>
@@ -218,7 +290,7 @@ export function RefeicoesView({ onBack, onSelectMeal, planName }: RefeicoesViewP
 
           {/* Hidratos */}
           <div className="flex flex-col items-center gap-1.5">
-            <Droplet className="w-4 h-4 text-zinc-300" strokeWidth={1.8} />
+            <Wheat className="w-4 h-4 text-amber-400" strokeWidth={2.2} />
             <span className="text-[11px] text-zinc-400 font-normal">Hidratos</span>
             <div className="text-[11px] font-medium leading-tight">
               <span className="text-white font-bold text-[12px]">200 g</span>
@@ -228,7 +300,7 @@ export function RefeicoesView({ onBack, onSelectMeal, planName }: RefeicoesViewP
 
           {/* Gorduras */}
           <div className="flex flex-col items-center gap-1.5">
-            <Droplet className="w-4 h-4 text-zinc-300" strokeWidth={1.8} />
+            <Droplet className="w-4 h-4 text-sky-400" strokeWidth={2.2} />
             <span className="text-[11px] text-zinc-400 font-normal">Gorduras</span>
             <div className="text-[11px] font-medium leading-tight">
               <span className="text-white font-bold text-[12px]">60 g</span>
@@ -340,7 +412,7 @@ export function RefeicoesView({ onBack, onSelectMeal, planName }: RefeicoesViewP
             </div>
 
             <div className="flex items-center gap-1 text-zinc-400 text-[9px]">
-              <Calendar className="w-2.5 h-2.5 text-zinc-500 shrink-0" />
+              <Calendar className="w-2.5 h-2.5 text-amber-400 shrink-0" />
               <span className="truncate">Planeada p/ sábado</span>
             </div>
 
@@ -360,7 +432,7 @@ export function RefeicoesView({ onBack, onSelectMeal, planName }: RefeicoesViewP
         >
           <div className="flex flex-col justify-center gap-1.5 min-w-0">
             <div className="flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-zinc-400" />
+              <FileText className="w-3.5 h-3.5 text-[#F77F00]" />
               <span className="text-white font-semibold text-[12px]">Notas</span>
             </div>
             <span className="text-zinc-500 text-[10px] truncate">
@@ -370,6 +442,7 @@ export function RefeicoesView({ onBack, onSelectMeal, planName }: RefeicoesViewP
 
           <ChevronRight className="w-3.5 h-3.5 text-zinc-600 shrink-0 group-hover:text-orange-500 transition-colors ml-1" />
         </div>
+      </div>
       </div>
 
       {/* MODAL ADICIONAR REFEIÇÃO */}
@@ -537,6 +610,19 @@ export function RefeicoesView({ onBack, onSelectMeal, planName }: RefeicoesViewP
           </div>
         </div>
       )}
-    </div>
+      {/* MODAL LISTA DE COMPRAS */}
+      <ShoppingListModal
+        isOpen={isShoppingListOpen}
+        onClose={() => setIsShoppingListOpen(false)}
+        planName={planName}
+        items={shoppingItems}
+        daysMultiplier={shoppingDays}
+        onChangeDaysMultiplier={setShoppingDays}
+        onToggleItem={handleToggleShoppingItem}
+        onAddCustomItem={handleAddCustomShoppingItem}
+        onRemoveItem={handleRemoveShoppingItem}
+        onResetChecked={handleResetCheckedShopping}
+      />
+    </>
   );
 }

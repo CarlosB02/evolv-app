@@ -217,7 +217,20 @@ export const mockCoachInfo: CoachInfo = {
   avatarUrl: 'https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=400&auto=format&fit=crop&q=80',
   status: 'Online agora',
   phone: '+351 912 345 678',
-  club: 'PR1ME Fitness Club Alvalade',
+  club: 'EVOLV Performance Club',
+  specialty: 'Hipertrofia & Força',
+  availability: 'Seg - Sex (07:00 - 20:00)',
+};
+
+export const mockNutritionistInfo: CoachInfo = {
+  name: 'Dra. Inês Costa',
+  role: 'Nutricionista Desportiva',
+  avatarUrl: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&auto=format&fit=crop&q=80',
+  status: 'Online agora',
+  phone: '+351 914 820 315',
+  club: 'EVOLV Nutrição & Saúde',
+  specialty: 'Nutrição Desportiva & Recomposição',
+  availability: 'Seg - Sex (09:00 - 19:00)',
 };
 
 export const mockNotifications: AppNotification[] = [
@@ -372,10 +385,49 @@ export const mockChatMessages: ChatMessage[] = [
   {
     id: 'msg-7',
     sender: 'coach',
-    text: 'Bom dia João! Não te esqueças que temos avaliação física agendada para dia 20 às 10:00. Se tiveres dúvidas sobre a dieta desta semana diz-me por aqui.',
+    text: 'Bom dia João! Não te esqueças que temos avaliação física agendada para dia 20 às 10:00. Se tiveres dúvidas sobre os treinos desta semana diz-me por aqui.',
     timestamp: '09:30',
     dateLabel: 'Hoje',
     createdAt: '2026-10-08T09:30:00Z',
+    status: 'read',
+  },
+];
+
+export const mockNutritionistMessages: ChatMessage[] = [
+  {
+    id: 'nutri-1',
+    sender: 'coach',
+    text: 'Olá João! Já atualizei o teu plano de Dia de Treino e Dia de Descanso na secção Dieta. Como te tens sentido com o nível de energia nos treinos?',
+    timestamp: '11:10',
+    dateLabel: 'Ontem',
+    createdAt: '2026-10-07T11:10:00Z',
+    status: 'read',
+  },
+  {
+    id: 'nutri-2',
+    sender: 'student',
+    text: 'Olá Dra. Inês! Muito melhor esta semana, especialmente desde que subimos os hidratos no pré-treino. Posso trocar o arroz basmati por batata-doce ao jantar?',
+    timestamp: '11:24',
+    dateLabel: 'Ontem',
+    createdAt: '2026-10-07T11:24:00Z',
+    status: 'read',
+  },
+  {
+    id: 'nutri-3',
+    sender: 'coach',
+    text: 'Sim, perfeitamente! Podes usar 220g de batata-doce assada ou cozida em substituição dos 150g de arroz cozido para manteres os mesmos hidratos.',
+    timestamp: '11:29',
+    dateLabel: 'Ontem',
+    createdAt: '2026-10-07T11:29:00Z',
+    status: 'read',
+  },
+  {
+    id: 'nutri-4',
+    sender: 'coach',
+    text: 'Lembra-te também de manter os 2.5L de água ao longo do dia e envia foto da refeição pós-treino se tiveres alguma dúvida nas porções.',
+    timestamp: '09:15',
+    dateLabel: 'Hoje',
+    createdAt: '2026-10-08T09:15:00Z',
     status: 'read',
   },
 ];

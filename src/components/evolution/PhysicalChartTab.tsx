@@ -355,14 +355,10 @@ export function PhysicalChartTab() {
     }
   };
 
-  // Resumo da evolução (INÍCIO, ATUAL, VARIAÇÃO + %)
+  // Resumo da evolução (INÍCIO, ATUAL, VARIAÇÃO)
   const totalDiff =
     firstPoint && latestPoint
       ? Math.round((latestPoint.value - firstPoint.value) * 10) / 10
-      : null;
-  const totalPercent =
-    firstPoint && latestPoint && firstPoint.value > 0
-      ? Math.round(((latestPoint.value - firstPoint.value) / firstPoint.value) * 1000) / 10
       : null;
 
   // Índices das datas a mostrar no eixo X para evitar sobreposição em ecrãs móveis
@@ -498,12 +494,13 @@ export function PhysicalChartTab() {
         </section>
       )}
 
-      {/* 3. GRÁFICO DE EVOLUÇÃO */}
+      {/* 3. GRÁFICO DE EVOLUÇÃO + RESUMO */}
       <section
         ref={chartSectionRef}
-        className="rounded-[22px] bg-[#0a0a0a] border border-zinc-800/80 p-4 space-y-3"
+        className="rounded-[22px] bg-[#0a0a0a] border border-zinc-800/80 overflow-hidden"
       >
-        {/* Barra de consulta do ponto selecionado */}
+        <div className="p-4 space-y-3">
+          {/* Barra de consulta do ponto selecionado */}
         {activePoint && (
           <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-zinc-800/70">
             <div className="min-w-0">
@@ -759,63 +756,50 @@ export function PhysicalChartTab() {
             })}
           </svg>
         </div>
-      </section>
-
-      {/* 4. RESUMO DA EVOLUÇÃO */}
-      <section className="grid grid-cols-3 rounded-[22px] bg-[#0a0a0a] border border-zinc-800/80 divide-x divide-zinc-800/70 overflow-hidden">
-        <div className="p-3.5 text-center">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">
-            INÍCIO
-          </span>
-          <span className="text-sm font-bold text-white tabular-nums mt-1 block">
-            {firstPoint
-              ? `${formatPtNumber(firstPoint.value, metric.decimals)} ${metric.unit}`
-              : '—'}
-          </span>
         </div>
 
-        <div className="p-3.5 text-center">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[#F77F00] block">
-            ATUAL
-          </span>
-          <span className="text-sm font-bold text-white tabular-nums mt-1 block">
-            {latestPoint
-              ? `${formatPtNumber(latestPoint.value, metric.decimals)} ${metric.unit}`
-              : '—'}
-          </span>
-        </div>
+        {/* Resumo da evolução integrado no bloco do gráfico */}
+        <div className="grid grid-cols-3 border-t border-zinc-800/70 divide-x divide-zinc-800/70">
+          <div className="py-3.5 px-2 text-center">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block leading-none">
+              INÍCIO
+            </span>
+            <span className="text-sm font-bold text-white tabular-nums mt-1.5 block leading-none whitespace-nowrap">
+              {firstPoint
+                ? `${formatPtNumber(firstPoint.value, metric.decimals)} ${metric.unit}`
+                : '—'}
+            </span>
+          </div>
 
-        <div className="p-3.5 text-center">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">
-            VARIAÇÃO
-          </span>
-          <span
-            className={`text-sm font-bold tabular-nums mt-1 block ${
-              isTotalDown
-                ? 'text-emerald-400'
-                : isTotalUp
-                  ? 'text-[#F77F00]'
-                  : 'text-white'
-            }`}
-          >
-            {totalDiff !== null
-              ? formatSignedValue(totalDiff, metric.unit, metric.decimals)
-              : '—'}
-          </span>
-          {totalPercent !== null && Math.abs(totalPercent) >= 0.05 && (
+          <div className="py-3.5 px-2 text-center">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#F77F00] block leading-none">
+              ATUAL
+            </span>
+            <span className="text-sm font-bold text-white tabular-nums mt-1.5 block leading-none whitespace-nowrap">
+              {latestPoint
+                ? `${formatPtNumber(latestPoint.value, metric.decimals)} ${metric.unit}`
+                : '—'}
+            </span>
+          </div>
+
+          <div className="py-3.5 px-2 text-center">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block leading-none">
+              VARIAÇÃO
+            </span>
             <span
-              className={`text-[10px] font-semibold tabular-nums block ${
+              className={`text-sm font-bold tabular-nums mt-1.5 block leading-none whitespace-nowrap ${
                 isTotalDown
-                  ? 'text-emerald-400/90'
+                  ? 'text-emerald-400'
                   : isTotalUp
-                    ? 'text-[#F77F00]/90'
-                    : 'text-zinc-400'
+                    ? 'text-[#F77F00]'
+                    : 'text-white'
               }`}
             >
-              ({totalPercent > 0 ? '+' : '-'}
-              {formatPtNumber(Math.abs(totalPercent), 1)}%)
+              {totalDiff !== null
+                ? formatSignedValue(totalDiff, metric.unit, metric.decimals)
+                : '—'}
             </span>
-          )}
+          </div>
         </div>
       </section>
 

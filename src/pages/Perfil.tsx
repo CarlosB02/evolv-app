@@ -114,12 +114,12 @@ export function Perfil({ onBack }: PerfilProps) {
   }
 
   return (
-    <div className="flex flex-col px-5 pt-4 pb-12 animate-in fade-in zoom-in-95 duration-200">
-      
+    <>
       {/* 1. CABEÇALHO */}
-      <header className="flex items-center justify-between mb-5">
+      <header className="flex items-center justify-between px-5 pt-[max(0.75rem,env(safe-area-inset-top))] sm:pt-8 pb-3 bg-black/90 backdrop-blur-xl sticky top-0 z-30 border-b border-zinc-900">
         {/* Botão Voltar */}
         <button
+          type="button"
           onClick={onBack}
           className="flex items-center gap-1 text-zinc-400 hover:text-white transition-colors cursor-pointer group"
           aria-label="Voltar"
@@ -134,6 +134,7 @@ export function Perfil({ onBack }: PerfilProps) {
         {/* Acesso às Definições & Ação para Terminar Sessão */}
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={() => setIsSettingsOpen(true)}
             className="p-2 rounded-full text-zinc-400 hover:text-orange-500 hover:bg-zinc-800/60 transition-all cursor-pointer"
             aria-label="Definições"
@@ -143,6 +144,7 @@ export function Perfil({ onBack }: PerfilProps) {
           </button>
           
           <button
+            type="button"
             onClick={() => setIsLogoutOpen(true)}
             className="p-2 rounded-full text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
             aria-label="Terminar Sessão"
@@ -152,6 +154,8 @@ export function Perfil({ onBack }: PerfilProps) {
           </button>
         </div>
       </header>
+
+      <div className="flex flex-col px-5 pt-4 pb-8 animate-in fade-in duration-200">
 
       {/* AVISO DE PLANO EXPIRADO (se simulado/expirado) */}
       {student.subscription.isExpiredSimulated && (
@@ -584,6 +588,8 @@ export function Perfil({ onBack }: PerfilProps) {
         </div>
       </div>
 
+      </div>
+
       {/* Modais auxiliares */}
       <AvatarPickerModal
         currentAvatar={student.avatarUrl}
@@ -606,6 +612,6 @@ export function Perfil({ onBack }: PerfilProps) {
         isOpen={isReportOpen}
         onClose={() => setIsReportOpen(false)}
       />
-    </div>
+    </>
   );
 }

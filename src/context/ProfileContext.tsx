@@ -21,6 +21,9 @@ import {
 export interface AppSettings {
   pushNotifications: boolean;
   workoutReminders: boolean;
+  quietHoursEnabled: boolean;
+  quietHoursStart: string; // HH:mm
+  quietHoursEnd: string; // HH:mm
   language: 'PT' | 'EN' | 'ES';
   theme: 'dark' | 'light';
   zoomPercent: number; // 50 to 120
@@ -105,6 +108,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const defaultSettings: AppSettings = {
     pushNotifications: true,
     workoutReminders: true,
+    quietHoursEnabled: true,
+    quietHoursStart: '22:00',
+    quietHoursEnd: '08:00',
     language: 'PT',
     theme: 'dark',
     zoomPercent: 100,

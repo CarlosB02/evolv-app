@@ -554,7 +554,17 @@ export function PhysicalListTab() {
                         </div>
                       </div>
 
-                      <ChevronRight className="w-4 h-4 text-[#F77F00] group-hover:translate-x-0.5 transition-transform shrink-0" />
+                      <div className="flex items-center gap-2 shrink-0">
+                        {item.weight > 0 && (
+                          <span className="text-xs font-bold text-white tabular-nums whitespace-nowrap">
+                            {formatPtNumber(item.weight)}{' '}
+                            <span className="text-[11px] font-medium text-zinc-400">
+                              kg
+                            </span>
+                          </span>
+                        )}
+                        <ChevronRight className="w-4 h-4 text-[#F77F00] group-hover:translate-x-0.5 transition-transform shrink-0" />
+                      </div>
                     </button>
                   );
                 })}

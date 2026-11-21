@@ -13,10 +13,12 @@ import { Evolucao } from './pages/Evolucao';
 import { Perfil } from './pages/Perfil';
 import { Notificacoes } from './pages/Notificacoes';
 import { Comunidade } from './pages/Comunidade';
+import { CheckInDiario } from './pages/CheckInDiario';
 import { ProfileProvider, useProfile } from './context/ProfileContext';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
 import { CommunityProvider, useCommunity } from './context/CommunityContext';
 import { CardioProvider } from './context/CardioContext';
+import { DailyCheckInProvider, useDailyCheckIn } from './context/DailyCheckInContext';
 import { LogIn } from 'lucide-react';
 import { useScrollToTop } from './utils/scrollToTop';
 
@@ -25,10 +27,11 @@ function MainApp() {
   const { isProfileOpen, closeProfile, isLoggedOut, reLogin, student, settings } = useProfile();
   const { isNotificationsOpen, closeNotifications } = useNotifications();
   const { isCommunityOpen, closeCommunity } = useCommunity();
+  const { isCheckInOpen, closeCheckIn } = useDailyCheckIn();
 
   const isLight = settings.theme === 'light';
 
-  useScrollToTop([activeTab, isProfileOpen, isNotificationsOpen, isCommunityOpen, isLoggedOut]);
+  useScrollToTop([activeTab, isProfileOpen, isNotificationsOpen, isCommunityOpen, isCheckInOpen, isLoggedOut]);
 
   useEffect(() => {
     // Sync theme class to root
@@ -52,6 +55,9 @@ function MainApp() {
     }
     if (isCommunityOpen) {
       closeCommunity();
+    }
+    if (isCheckInOpen) {
+      closeCheckIn();
     }
     setActiveTab(tab);
   };
@@ -108,6 +114,8 @@ function MainApp() {
             <Comunidade onBack={closeCommunity} />
           ) : isProfileOpen ? (
             <Perfil onBack={closeProfile} />
+          ) : isCheckInOpen ? (
+            <CheckInDiario onBack={closeCheckIn} />
           ) : (
             <>
               {activeTab === 'home' && <Home onGoToWorkout={() => setActiveTab('treino')} />}
@@ -136,7 +144,9 @@ export default function App() {
       <NotificationProvider>
         <CommunityProvider>
           <CardioProvider>
-            <MainApp />
+            <DailyCheckInProvider>
+              <MainApp />
+            </DailyCheckInProvider>
           </CardioProvider>
         </CommunityProvider>
       </NotificationProvider>

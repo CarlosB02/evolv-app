@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   X, 
   Bell, 
-  Calendar, 
   Globe, 
+  Moon,
   Settings as SettingsIcon,
   ZoomIn,
   Scale,
@@ -21,6 +22,15 @@ interface SettingsModalProps {
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { settings, updateSettings } = useProfile();
   const [langNotice, setLangNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -44,26 +54,42 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
-      <div className="bg-[#111111] border border-zinc-800 rounded-t-[28px] sm:rounded-[24px] w-full max-w-[420px] p-5 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[92vh] overflow-y-auto hide-scrollbar">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 mb-3.5 sticky top-0 bg-[#111111] z-10">
-          <div className="flex items-center gap-2">
-            <SettingsIcon className="w-5 h-5 text-orange-500" />
-            <h3 className="text-white text-base font-bold">Definições da Aplicação</h3>
+  const portalTarget =
+    typeof document !== 'undefined'
+      ? document.querySelector('.app-device-wrapper') || document.body
+      : null;
+
+  const modalContent = (
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-[260] flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm px-0 pt-[max(1rem,env(safe-area-inset-top))] sm:p-4 animate-in fade-in duration-200"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Definições da Aplicação"
+        className="bg-[#111111] border-t sm:border border-zinc-800 rounded-t-[28px] sm:rounded-[24px] w-full max-w-[420px] max-h-full sm:max-h-[88%] flex flex-col overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-200"
+      >
+        {/* Fixed Header (sempre visível para fechar) */}
+        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-zinc-800/80 bg-[#111111] shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <SettingsIcon className="w-5 h-5 text-orange-500 shrink-0" />
+            <h3 className="text-white text-base font-bold truncate">Definições da Aplicação</h3>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="text-zinc-400 hover:text-white p-1 rounded-full hover:bg-zinc-800/60 transition-colors cursor-pointer"
+            className="text-zinc-400 hover:text-white min-w-[40px] min-h-[40px] -mr-2 flex items-center justify-center rounded-full hover:bg-zinc-800/60 transition-colors cursor-pointer shrink-0"
             aria-label="Fechar"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="space-y-4">
+        {/* Scrollable Content */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain hide-scrollbar px-5 py-4 space-y-4">
           
           {/* 1. APARÊNCIA */}
           <div>
@@ -345,7 +371,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <button
                   type="button"
                   onClick={() => updateSettings({ pushNotifications: !settings.pushNotifications })}
-                  className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
+                  className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer shrink-0 ${
                     settings.pushNotifications ? 'bg-orange-500' : 'bg-zinc-800'
                   }`}
                   aria-label="Alternar Notificações Push"
@@ -358,39 +384,99 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 </button>
               </div>
 
-              <div className="flex items-center justify-between pt-3 border-t border-zinc-800/50">
-                <div className="flex items-center gap-2.5">
-                  <Calendar className="w-4 h-4 text-orange-500 shrink-0" />
-                  <div className="flex flex-col">
-                    <span className="text-white text-xs font-semibold leading-tight">Lembretes de Treino</span>
-                    <span className="text-zinc-500 text-[10px] leading-tight mt-0.5">Alerta 1h antes do treino planeado</span>
+              {/* HORAS SEM NOTIFICAÇÕES */}
+              <div className="pt-3 border-t border-zinc-800/50">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Moon className="w-4 h-4 text-orange-500 shrink-0" />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-white text-xs font-semibold leading-tight">
+                        Horas sem Notificações
+                      </span>
+                      <span className="text-zinc-500 text-[10px] leading-tight mt-0.5 truncate">
+                        {settings.quietHoursEnabled
+                          ? `Silenciado das ${settings.quietHoursStart} às ${settings.quietHoursEnd}`
+                          : 'Definir horário de silêncio'}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateSettings({ quietHoursEnabled: !settings.quietHoursEnabled })
+                    }
+                    className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer shrink-0 ${
+                      settings.quietHoursEnabled ? 'bg-orange-500' : 'bg-zinc-800'
+                    }`}
+                    aria-label="Alternar Horas sem Notificações"
+                  >
+                    <span
+                      className={`block w-4 h-4 rounded-full bg-white transition-transform ${
+                        settings.quietHoursEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Seletores de Início e Fim */}
+                <div
+                  className={`grid transition-all duration-300 ease-out ${
+                    settings.quietHoursEnabled
+                      ? 'grid-rows-[1fr] opacity-100 mt-3'
+                      : 'grid-rows-[0fr] opacity-0 mt-0 pointer-events-none'
+                  }`}
+                >
+                  <div className="overflow-hidden">
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <label className="bg-[#111111] border border-zinc-800/80 focus-within:border-[#F77F00] rounded-xl px-3 py-2 flex flex-col gap-1 transition-colors cursor-pointer">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                          Início
+                        </span>
+                        <input
+                          type="time"
+                          value={settings.quietHoursStart}
+                          onChange={(e) =>
+                            updateSettings({ quietHoursStart: e.target.value || '22:00' })
+                          }
+                          aria-label="Hora de início sem notificações"
+                          className={`w-full bg-transparent text-white text-sm font-bold tabular-nums outline-none cursor-pointer ${
+                            isLightMode ? '[color-scheme:light]' : '[color-scheme:dark]'
+                          }`}
+                        />
+                      </label>
+
+                      <label className="bg-[#111111] border border-zinc-800/80 focus-within:border-[#F77F00] rounded-xl px-3 py-2 flex flex-col gap-1 transition-colors cursor-pointer">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                          Fim
+                        </span>
+                        <input
+                          type="time"
+                          value={settings.quietHoursEnd}
+                          onChange={(e) =>
+                            updateSettings({ quietHoursEnd: e.target.value || '08:00' })
+                          }
+                          aria-label="Hora de fim sem notificações"
+                          className={`w-full bg-transparent text-white text-sm font-bold tabular-nums outline-none cursor-pointer ${
+                            isLightMode ? '[color-scheme:light]' : '[color-scheme:dark]'
+                          }`}
+                        />
+                      </label>
+                    </div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => updateSettings({ workoutReminders: !settings.workoutReminders })}
-                  className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
-                    settings.workoutReminders ? 'bg-orange-500' : 'bg-zinc-800'
-                  }`}
-                  aria-label="Alternar Lembretes de Treino"
-                >
-                  <span
-                    className={`block w-4 h-4 rounded-full bg-white transition-transform ${
-                      settings.workoutReminders ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
               </div>
             </div>
           </div>
 
         </div>
 
-        {/* Action Button */}
-        <div className="pt-4 mt-4 border-t border-zinc-800/80">
+        {/* Fixed Footer Action Button */}
+        <div className="px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-zinc-800/80 bg-[#111111] shrink-0">
           <button
+            type="button"
             onClick={onClose}
-            className="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs transition-colors shadow-lg shadow-orange-500/20 cursor-pointer"
+            style={{ color: '#ffffff' }}
+            className="w-full py-3 rounded-xl bg-[#F77F00] hover:bg-orange-600 font-bold text-xs transition-colors shadow-lg shadow-orange-500/20 cursor-pointer"
           >
             Guardar & Concluir
           </button>
@@ -398,4 +484,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       </div>
     </div>
   );
+
+  return portalTarget ? createPortal(modalContent, portalTarget) : modalContent;
 }

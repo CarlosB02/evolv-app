@@ -15,7 +15,6 @@ import {
 } from '../../data/trainingEvolutionData';
 
 type PeriodIntervalCount = 3 | 6 | 8 | 12;
-type TemporalGrouping = 'semanal' | 'mensal' | 'trimestral';
 
 interface TrainingBarDatum {
   key: string;
@@ -33,12 +32,6 @@ const PERIOD_OPTIONS: { value: PeriodIntervalCount; shortLabel: string }[] = [
   { value: 6, shortLabel: '6M' },
   { value: 8, shortLabel: '8M' },
   { value: 12, shortLabel: '12M' },
-];
-
-const GROUPING_OPTIONS: { value: TemporalGrouping; label: string }[] = [
-  { value: 'semanal', label: 'Semanal' },
-  { value: 'mensal', label: 'Mensal' },
-  { value: 'trimestral', label: 'Trimestral' },
 ];
 
 const MONTH_ABBR_PT = [
@@ -106,8 +99,7 @@ function topRoundedBarPath(
 
 function aggregateSessions(
   sessions: ExerciseSessionLog[],
-  intervalMonths: PeriodIntervalCount,
-  grouping: TemporalGrouping
+  intervalMonths: PeriodIntervalCount
 ): {
   bars: TrainingBarDatum[];
   periodDisplayLabel: string;
@@ -125,45 +117,7 @@ function aggregateSessions(
   const sorted = [...sessions].sort((a, b) => a.isoDate.localeCompare(b.isoDate));
   const lastDate = new Date(`${sorted[sorted.length - 1].isoDate}T12:00:00`);
 
-  if (grouping === 'semanal') {
-    const weekCount = intervalMonths; // 3, 6, 8 ou 12 últimas sessões/semanas
-    const recentSessions = sorted.slice(-weekCount);
-    const totalLiftedKg = recentSessions.reduce(
-      (sum, s) => sum + Math.round(s.loadKg * s.sets),
-      0
-    );
-
-    const bars: TrainingBarDatum[] = recentSessions.map((s, idx) => {
-      const d = new Date(`${s.isoDate}T12:00:00`);
-      const day = d.getDate();
-      const monthIdx = d.getMonth();
-      const yrShort = String(d.getFullYear()).slice(-2);
-      const prevLoad = idx > 0 ? recentSessions[idx - 1].loadKg : null;
-      const growthVsPrevPct =
-        prevLoad && prevLoad > 0
-          ? Math.round(((s.loadKg - prevLoad) / prevLoad) * 1000) / 10
-          : null;
-
-      return {
-        key: `${s.isoDate}-${idx}`,
-        topLabel: `${day} ${MONTH_ABBR_PT[monthIdx]}`,
-        bottomLabel: yrShort,
-        fullPeriodLabel: `${day} ${MONTH_ABBR_PT[monthIdx]} ${d.getFullYear()}`,
-        valueKg: s.loadKg,
-        sessionsCount: 1,
-        totalVolumeKg: Math.round(s.loadKg * s.sets),
-        growthVsPrevPct,
-      };
-    });
-
-    return {
-      bars,
-      periodDisplayLabel: `Últimas ${weekCount} semanas`,
-      totalLiftedKg,
-    };
-  }
-
-  // Limite inicial por meses (para Mensal e Trimestral)
+  // Limite inicial por meses
   const startMonthDate = new Date(
     lastDate.getFullYear(),
     lastDate.getMonth() - (intervalMonths - 1),
@@ -179,69 +133,7 @@ function aggregateSessions(
     0
   );
 
-  if (grouping === 'trimestral') {
-    const quarterMap = new Map<
-      string,
-      {
-        year: number;
-        quarter: number;
-        maxKg: number;
-        count: number;
-        volKg: number;
-      }
-    >();
-
-    for (const s of filteredSessions) {
-      const d = new Date(`${s.isoDate}T12:00:00`);
-      const y = d.getFullYear();
-      const q = Math.floor(d.getMonth() / 3) + 1;
-      const key = `${y}-Q${q}`;
-      const existing = quarterMap.get(key);
-      if (existing) {
-        existing.maxKg = Math.max(existing.maxKg, s.loadKg);
-        existing.count += 1;
-        existing.volKg += Math.round(s.loadKg * s.sets);
-      } else {
-        quarterMap.set(key, {
-          year: y,
-          quarter: q,
-          maxKg: s.loadKg,
-          count: 1,
-          volKg: Math.round(s.loadKg * s.sets),
-        });
-      }
-    }
-
-    const entries = Array.from(quarterMap.entries()).sort((a, b) =>
-      a[0].localeCompare(b[0])
-    );
-
-    const bars: TrainingBarDatum[] = entries.map(([key, item], idx) => {
-      const prev = idx > 0 ? entries[idx - 1][1].maxKg : null;
-      const growthVsPrevPct =
-        prev && prev > 0
-          ? Math.round(((item.maxKg - prev) / prev) * 1000) / 10
-          : null;
-      return {
-        key,
-        topLabel: `T${item.quarter}`,
-        bottomLabel: String(item.year),
-        fullPeriodLabel: `${item.quarter}º Trimestre ${item.year}`,
-        valueKg: item.maxKg,
-        sessionsCount: item.count,
-        totalVolumeKg: item.volKg,
-        growthVsPrevPct,
-      };
-    });
-
-    return {
-      bars,
-      periodDisplayLabel: `Últimos ${intervalMonths} meses`,
-      totalLiftedKg,
-    };
-  }
-
-  // Agrupamento Mensal (padrão)
+  // Agrupamento mensal
   const monthMap = new Map<
     string,
     {
@@ -310,7 +202,6 @@ export function TrainingEvolutionTab() {
     () => exercises[0]?.id || 'coxas-2'
   );
   const [intervalCount, setIntervalCount] = useState<PeriodIntervalCount>(8);
-  const [grouping, setGrouping] = useState<TemporalGrouping>('mensal');
   const [selectedBarKey, setSelectedBarKey] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -360,8 +251,8 @@ export function TrainingEvolutionTab() {
         totalLiftedKg: 0,
       };
     }
-    return aggregateSessions(selectedExercise.sessions, intervalCount, grouping);
-  }, [selectedExercise, intervalCount, grouping]);
+    return aggregateSessions(selectedExercise.sessions, intervalCount);
+  }, [selectedExercise, intervalCount]);
 
   // Identificar Recorde, Média e Melhor Barra do período
   const summaryStats = useMemo(() => {
@@ -507,7 +398,7 @@ export function TrainingEvolutionTab() {
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [selectedExerciseId, intervalCount, grouping, bars.length]);
+  }, [selectedExerciseId, intervalCount, bars.length]);
 
   const activeBar = useMemo(() => {
     if (bars.length === 0) return null;
@@ -939,50 +830,26 @@ export function TrainingEvolutionTab() {
           </span>
         </div>
 
-        <div className="space-y-2">
-          {/* Seletor de intervalo */}
-          <div className="grid grid-cols-4 gap-1.5">
-            {PERIOD_OPTIONS.map((opt) => {
-              const isSelected = intervalCount === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setIntervalCount(opt.value)}
-                  style={isSelected ? { color: '#ffffff' } : undefined}
-                  className={`min-h-[36px] py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer border ${
-                    isSelected
-                      ? 'bg-[#F77F00] border-[#F77F00]'
-                      : 'bg-zinc-950/60 border-zinc-800/80 text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  {opt.shortLabel}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Seletor de agrupamento temporal */}
-          <div className="grid grid-cols-3 p-1 rounded-xl bg-zinc-950/60 border border-zinc-800/80">
-            {GROUPING_OPTIONS.map((opt) => {
-              const isSelected = grouping === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setGrouping(opt.value)}
-                  style={isSelected ? { color: '#ffffff' } : undefined}
-                  className={`min-h-[34px] py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-[#F77F00]'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
+        {/* Seletor de intervalo */}
+        <div className="grid grid-cols-4 gap-1.5">
+          {PERIOD_OPTIONS.map((opt) => {
+            const isSelected = intervalCount === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setIntervalCount(opt.value)}
+                style={isSelected ? { color: '#ffffff' } : undefined}
+                className={`min-h-[36px] py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer border ${
+                  isSelected
+                    ? 'bg-[#F77F00] border-[#F77F00]'
+                    : 'bg-zinc-950/60 border-zinc-800/80 text-zinc-400 hover:text-white'
+                }`}
+              >
+                {opt.shortLabel}
+              </button>
+            );
+          })}
         </div>
       </section>
 

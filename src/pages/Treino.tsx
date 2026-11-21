@@ -35,6 +35,7 @@ export function Treino() {
   const [activeRunningWorkout, setActiveRunningWorkout] = useState<DetailedWorkout | null>(null);
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(0);
   const [summaryFlowStep, setSummaryFlowStep] = useState<'summary' | 'feedback' | null>(null);
+  const [isNotesExpanded, setIsNotesExpanded] = useState(false);
 
   useScrollToTop([
     selectedWorkoutDetail?.id,
@@ -384,30 +385,31 @@ export function Treino() {
 
       {/* NOTAS TREINO */}
       <div className="bg-[#0a0a0a] border border-zinc-800/60 rounded-[20px] p-5 flex flex-col">
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between mb-3.5">
           <h4 className="text-[13px] font-medium text-white uppercase tracking-wider">Notas Treino</h4>
-          <button className="flex items-center gap-1 border border-orange-500/30 text-orange-500 px-3 py-1 rounded-full hover:bg-orange-500/10 transition-colors">
-            <span className="text-[10px] font-medium">Ver mais</span>
-            <ChevronRight className="w-3 h-3" />
+          <button
+            type="button"
+            onClick={() => setIsNotesExpanded((prev) => !prev)}
+            className="flex items-center gap-1 border border-orange-500/30 text-orange-500 px-3 py-1 rounded-full hover:bg-orange-500/10 transition-colors cursor-pointer"
+          >
+            <span className="text-[10px] font-medium">
+              {isNotesExpanded ? 'Ver menos' : 'Ver mais'}
+            </span>
+            <ChevronRight
+              className={`w-3 h-3 transition-transform duration-200 ${
+                isNotesExpanded ? 'rotate-90' : ''
+              }`}
+            />
           </button>
         </div>
 
-        <div className="flex flex-col">
-          <div className="flex items-start gap-3 pb-4 border-b border-zinc-800/60">
-            <div className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0 mt-1.5"></div>
-            <div>
-              <p className="text-xs font-medium text-white mb-1">3x semana 45' Bicicleta</p>
-              <p className="text-[11px] text-zinc-500 font-normal leading-tight">Foco em resistência e cadência.</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3 pt-4">
-            <div className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0 mt-1.5"></div>
-            <div>
-              <p className="text-xs font-medium text-white mb-1">2x Semana 30' Passadeira</p>
-              <p className="text-[11px] text-zinc-500 font-normal leading-tight">Manter ritmo constante.</p>
-            </div>
-          </div>
-        </div>
+        <p
+          className={`text-xs text-zinc-300 font-normal leading-relaxed transition-all ${
+            isNotesExpanded ? '' : 'line-clamp-3'
+          }`}
+        >
+          Realiza 3x por semana 45 minutos de bicicleta com foco em resistência e cadência controlada, complementando com 2x por semana 30 minutos de passadeira mantendo um ritmo constante. Prioriza sempre uma boa técnica de execução nos exercícios de força, respeita os tempos de descanso indicados entre séries e ajusta as cargas gradualmente assim que completares todas as repetições com controlo.
+        </p>
       </div>
 
       </div>

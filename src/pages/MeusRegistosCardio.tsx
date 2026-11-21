@@ -3,23 +3,18 @@ import {
   ChevronLeft, 
   ChevronDown,
   Filter, 
-  Pencil, 
   Plus, 
-  Clock, 
   MapPin, 
   Flame, 
   Zap, 
   X, 
   Check, 
-  Trash2, 
   Calendar,
-  Sparkles,
-  SlidersHorizontal,
-  Activity
+  Activity,
+  FileText
 } from 'lucide-react';
 import { useCardio } from '../context/CardioContext';
 import { useProfile } from '../context/ProfileContext';
-import { CardioSession } from '../types';
 
 interface MeusRegistosCardioProps {
   onBack: () => void;
@@ -32,14 +27,11 @@ export function MeusRegistosCardio({ onBack, onOpenNewWorkout }: MeusRegistosCar
   const { 
     sessions, 
     addSession, 
-    updateSession, 
-    deleteSession, 
     weekDays,
     selectedDate 
   } = useCardio();
 
   const { settings } = useProfile();
-  const speedUnit = settings.distanceUnit === 'Mi' ? 'mph' : 'km/h';
   const distUnit = settings.distanceUnit === 'Mi' ? 'mi' : 'km';
   const paceUnit = settings.distanceUnit === 'Mi' ? 'min/mi' : 'min/km';
 
@@ -49,22 +41,8 @@ export function MeusRegistosCardio({ onBack, onOpenNewWorkout }: MeusRegistosCar
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   // Modal states
-  const [editingSession, setEditingSession] = useState<CardioSession | null>(null);
   const [isNewWorkoutModalOpen, setIsNewWorkoutModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  // Edit form state
-  const [editDuration, setEditDuration] = useState<number>(30);
-  const [editDistance, setEditDistance] = useState<number>(4.0);
-  const [editCalories, setEditCalories] = useState<number>(250);
-  const [editEquipment, setEditEquipment] = useState<string>('Passadeira');
-  const [editSpeed, setEditSpeed] = useState<number>(8.0);
-  const [editIncline, setEditIncline] = useState<number>(2.0);
-  const [editBpm, setEditBpm] = useState<number>(140);
-  const [editDate, setEditDate] = useState<string>('');
-  const [editTime, setEditTime] = useState<string>('');
-  const [editNotes, setEditNotes] = useState<string>('');
-  const [editPeriod, setEditPeriod] = useState<string>('Manhã');
 
   // New workout modal form state
   const [newDuration, setNewDuration] = useState<number>(45);
@@ -179,52 +157,17 @@ export function MeusRegistosCardio({ onBack, onOpenNewWorkout }: MeusRegistosCar
     return Array.from(set);
   }, [sessions]);
 
-  // Open edit modal
-  const handleOpenEdit = (session: CardioSession) => {
-    setEditingSession(session);
-    setEditDuration(session.durationMinutes);
-    const dist = session.distanceKm || Number(((session.speed * (session.durationMinutes / 60)).toFixed(1)));
-    setEditDistance(dist || 0);
-    setEditCalories(session.calories);
-    setEditEquipment(session.equipment);
-    setEditSpeed(session.speed);
-    setEditIncline(session.incline);
-    setEditBpm(session.avgBpm);
-    setEditDate(session.date);
-    setEditTime(session.time || '10:00');
-    setEditNotes(session.notes || '');
-    setEditPeriod(session.periodLabel || 'Pós-treino');
-  };
-
-  // Submit edit
-  const handleSaveEdit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingSession) return;
-
-    updateSession(editingSession.id, {
-      durationMinutes: Number(editDuration),
-      distanceKm: Number(editDistance),
-      calories: Number(editCalories),
-      equipment: editEquipment,
-      speed: Number(editSpeed),
-      incline: Number(editIncline),
-      avgBpm: Number(editBpm),
-      date: editDate,
-      time: editTime,
-      notes: editNotes.trim() ? editNotes.trim() : undefined,
-      periodLabel: editPeriod,
-    });
-
-    setEditingSession(null);
-    showToast('Registo atualizado com sucesso!');
-  };
-
-  // Delete session
-  const handleDeleteCurrent = () => {
-    if (!editingSession) return;
-    deleteSession(editingSession.id);
-    setEditingSession(null);
-    showToast('Registo eliminado com sucesso.');
+  // Nota curta por defeito caso a sessão não tenha nota guardada
+  const getShortSessionNote = (notes?: string, equipment?: string) => {
+    const cleaned = notes?.trim();
+    if (cleaned) return cleaned;
+    if (equipment?.toLowerCase().includes('bicicleta')) {
+      return 'Cadência estável e boa recuperação.';
+    }
+    if (equipment?.toLowerCase().includes('elíptica')) {
+      return 'Ritmo fluido e frequência cardíaca controlada.';
+    }
+    return 'Ritmo constante e boa sensação geral.';
   };
 
   // Open new workout modal / page
@@ -276,23 +219,18 @@ export function MeusRegistosCardio({ onBack, onOpenNewWorkout }: MeusRegistosCar
     <div className="flex flex-col gap-4 px-5 pt-4 pb-20 animate-in fade-in zoom-in-95 duration-200">
       
       {/* CABEÇALHO */}
-      <header className="flex justify-between items-start mb-1">
-        <div className="flex items-start gap-3">
+      <header className="flex justify-between items-center mb-1">
+        <div className="flex items-center gap-3">
           <button 
             onClick={onBack}
-            className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-500 hover:bg-orange-500/20 active:scale-95 transition-all cursor-pointer mt-0.5"
+            className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-500 hover:bg-orange-500/20 active:scale-95 transition-all cursor-pointer"
             aria-label="Voltar"
           >
             <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
           </button>
-          <div>
-            <h1 className="text-white text-xl font-bold tracking-tight">
-              Meus registos
-            </h1>
-            <p className="text-zinc-400 text-xs mt-0.5 max-w-[230px] leading-snug">
-              Veja todos os treinos de cardio que você já realizou.
-            </p>
-          </div>
+          <h1 className="text-white text-xl font-bold tracking-tight">
+            Meus registos
+          </h1>
         </div>
 
         {/* Botão Filtrar */}
@@ -392,7 +330,7 @@ export function MeusRegistosCardio({ onBack, onOpenNewWorkout }: MeusRegistosCar
                     : 'border-zinc-800/70'
                 }`}
               >
-                {/* TOPO DO CARD: Data e Equipamento à esquerda | Tempo total e Botão Lápis à direita */}
+                {/* TOPO DO CARD: Data e Equipamento à esquerda | Tempo total à direita */}
                 <div className="flex items-center justify-between mb-3.5">
                   {/* Lado esquerdo: Data e Equipamento em texto pequeno por baixo */}
                   <div className="flex flex-col">
@@ -405,23 +343,12 @@ export function MeusRegistosCardio({ onBack, onOpenNewWorkout }: MeusRegistosCar
                     </span>
                   </div>
 
-                  {/* Lado direito: Total de tempo ao lado esquerdo do ícone de editar */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-xl font-bold text-white tracking-tight">
-                        {session.durationMinutes}
-                      </span>
-                      <span className="text-zinc-400 text-xs font-medium">min</span>
-                    </div>
-
-                    <button
-                      onClick={() => handleOpenEdit(session)}
-                      className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-orange-500/40 text-zinc-300 hover:text-orange-400 flex items-center justify-center transition-all active:scale-95 cursor-pointer"
-                      title="Editar treino"
-                      aria-label="Editar registo"
-                    >
-                      <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
-                    </button>
+                  {/* Lado direito: Total de tempo */}
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xl font-bold text-white tracking-tight tabular-nums">
+                      {session.durationMinutes}
+                    </span>
+                    <span className="text-zinc-400 text-xs font-medium">min</span>
                   </div>
                 </div>
 
@@ -459,6 +386,14 @@ export function MeusRegistosCardio({ onBack, onOpenNewWorkout }: MeusRegistosCar
                       {session.calories} <span className="text-[10px] text-zinc-400 font-normal">kcal</span>
                     </p>
                   </div>
+                </div>
+
+                {/* NOTA SIMPLES E PEQUENA */}
+                <div className="mt-2.5 pt-2.5 border-t border-zinc-800/60 flex items-start gap-2">
+                  <FileText className="w-3.5 h-3.5 text-orange-500/80 shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-zinc-400 leading-snug line-clamp-2">
+                    {getShortSessionNote(session.notes, session.equipment)}
+                  </p>
                 </div>
               </div>
             );
@@ -599,192 +534,7 @@ export function MeusRegistosCardio({ onBack, onOpenNewWorkout }: MeusRegistosCar
         </div>
       )}
 
-      {/* ========================================= */}
-      {/* MODAL: EDITAR REGISTO DE SESSÃO (LÁPIS) */}
-      {/* ========================================= */}
-      {editingSession && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-[420px] bg-zinc-950 border border-zinc-800 rounded-t-[28px] sm:rounded-[28px] p-6 shadow-2xl max-h-[90vh] overflow-y-auto hide-scrollbar animate-in slide-in-from-bottom duration-300">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-800 mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-500">
-                  <Pencil className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-white">Editar Sessão de Cardio</h3>
-                  <p className="text-[11px] text-zinc-400">Atualize os dados do treino</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setEditingSession(null)}
-                className="w-8 h-8 rounded-full bg-zinc-900 text-zinc-400 hover:text-white flex items-center justify-center"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            <form onSubmit={handleSaveEdit} className="space-y-4">
-              {/* Data e Hora */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
-                    Data
-                  </label>
-                  <input
-                    type="date"
-                    value={editDate}
-                    onChange={(e) => setEditDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-medium text-xs focus:outline-none focus:border-orange-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
-                    Hora
-                  </label>
-                  <input
-                    type="time"
-                    value={editTime}
-                    onChange={(e) => setEditTime(e.target.value)}
-                    className="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-medium text-xs focus:outline-none focus:border-orange-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Duração e Distância */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
-                    Duração (min)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="360"
-                    value={editDuration}
-                    onChange={(e) => setEditDuration(parseInt(e.target.value) || 0)}
-                    className="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-medium text-xs focus:outline-none focus:border-orange-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
-                    Distância ({distUnit})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="100"
-                    value={editDistance}
-                    onChange={(e) => setEditDistance(parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-medium text-xs focus:outline-none focus:border-orange-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Ritmo calculado preview */}
-              <div className="p-2.5 bg-zinc-900/60 border border-zinc-800/80 rounded-xl flex items-center justify-between text-xs">
-                <span className="text-zinc-400">Ritmo médio calculado:</span>
-                <span className="text-orange-400 font-bold">
-                  {formatPace(editDuration, editDistance, editSpeed)}
-                </span>
-              </div>
-
-              {/* Calorias e BPM */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
-                    Calorias (kcal)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={editCalories}
-                    onChange={(e) => setEditCalories(parseInt(e.target.value) || 0)}
-                    className="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-medium text-xs focus:outline-none focus:border-orange-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
-                    BPM Médio
-                  </label>
-                  <input
-                    type="number"
-                    min="50"
-                    max="220"
-                    value={editBpm}
-                    onChange={(e) => setEditBpm(parseInt(e.target.value) || 0)}
-                    className="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-medium text-xs focus:outline-none focus:border-orange-500"
-                  />
-                </div>
-              </div>
-
-              {/* Equipamento */}
-              <div>
-                <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
-                  Equipamento
-                </label>
-                <select
-                  value={editEquipment}
-                  onChange={(e) => setEditEquipment(e.target.value)}
-                  className="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-medium text-xs focus:outline-none focus:border-orange-500"
-                >
-                  <option value="Passadeira">Passadeira</option>
-                  <option value="Bicicleta Estática">Bicicleta Estática</option>
-                  <option value="Elíptica">Elíptica</option>
-                  <option value="Remo">Remo</option>
-                  <option value="Escadas / Stairmaster">Escadas / Stairmaster</option>
-                  <option value="Corrida Exterior">Corrida Exterior</option>
-                </select>
-              </div>
-
-              {/* Notas */}
-              <div>
-                <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
-                  Notas de treino
-                </label>
-                <textarea
-                  rows={2}
-                  value={editNotes}
-                  onChange={(e) => setEditNotes(e.target.value)}
-                  placeholder="Observações, sensações físicas..."
-                  className="w-full px-3.5 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-white text-xs placeholder:text-zinc-600 focus:outline-none focus:border-orange-500"
-                />
-              </div>
-
-              <div className="pt-2 flex flex-col gap-2">
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setEditingSession(null)}
-                    className="flex-1 py-3 rounded-xl bg-zinc-900 text-zinc-300 font-semibold text-xs border border-zinc-800 hover:bg-zinc-800 transition-colors cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white font-medium text-xs shadow-lg shadow-orange-500/20 transition-all cursor-pointer"
-                  >
-                    Guardar Alterações
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleDeleteCurrent}
-                  className="w-full py-2.5 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer mt-1"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Eliminar esta sessão</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* ========================================= */}
       {/* MODAL: REGISTAR NOVO TREINO */}

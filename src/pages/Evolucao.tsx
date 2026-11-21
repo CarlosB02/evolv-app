@@ -6,18 +6,21 @@ import { PhysicalEvolutionTab } from '../components/evolution/PhysicalEvolutionT
 import { PhysicalListTab } from '../components/evolution/PhysicalListTab';
 import { PhysicalChartTab } from '../components/evolution/PhysicalChartTab';
 import { TrainingEvolutionTab } from '../components/evolution/TrainingEvolutionTab';
+import { WorkoutEvolutionTab } from '../components/evolution/WorkoutEvolutionTab';
 import { useScrollToTop } from '../utils/scrollToTop';
 
 type MainArea = 'avaliacoes' | 'treino';
 type AssessmentSubTab = 'lista' | 'evolucao' | 'grafico';
+type TrainingSubTab = 'treino' | 'exercicio';
 
 export function Evolucao() {
   const { openProfile } = useProfile();
   const { openNotifications, totalUnreadCount } = useNotifications();
   const [activeArea, setActiveArea] = useState<MainArea>('avaliacoes');
   const [assessmentTab, setAssessmentTab] = useState<AssessmentSubTab>('evolucao');
+  const [trainingTab, setTrainingTab] = useState<TrainingSubTab>('treino');
 
-  useScrollToTop([activeArea, assessmentTab]);
+  useScrollToTop([activeArea, assessmentTab, trainingTab]);
 
   return (
     <>
@@ -132,7 +135,42 @@ export function Evolucao() {
           {assessmentTab === 'grafico' && <PhysicalChartTab />}
         </>
       ) : (
-        <TrainingEvolutionTab />
+        <>
+          {/* TABS DENTRO DE TREINO: TREINO | EXERCÍCIO */}
+          <div className="grid grid-cols-2 border-b border-zinc-800/80 mb-4">
+            {(
+              [
+                { id: 'treino', label: 'Treino' },
+                { id: 'exercicio', label: 'Exercício' },
+              ] as const
+            ).map((tab) => {
+              const isActive = trainingTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setTrainingTab(tab.id)}
+                  className={`min-h-[42px] py-2.5 text-xs font-bold relative transition-colors cursor-pointer whitespace-nowrap ${
+                    isActive
+                      ? 'text-[#F77F00]'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  {isActive && (
+                    <span className="absolute bottom-0 inset-x-4 h-[2px] rounded-full bg-[#F77F00]" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {trainingTab === 'treino' ? (
+            <WorkoutEvolutionTab />
+          ) : (
+            <TrainingEvolutionTab />
+          )}
+        </>
       )}
       </div>
     </>

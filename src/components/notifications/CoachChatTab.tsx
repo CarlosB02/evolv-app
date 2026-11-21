@@ -12,27 +12,40 @@ import {
   Play, 
   Pause, 
   Trash2, 
-  Sparkles,
   Info,
   X,
-  Volume2
+  Volume2,
+  Dumbbell,
+  Utensils,
 } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
-import { ChatMessage } from '../../types';
+import { ChatMessage, ChatSpecialist } from '../../types';
 
 export function CoachChatTab() {
   const { 
-    chatMessages, 
-    coachInfo, 
-    isCoachTyping, 
+    activeChatSpecialist,
+    setActiveChatSpecialist,
+    chatMessages,
+    nutritionistMessages,
+    coachInfo,
+    nutritionistInfo,
+    isCoachTyping,
+    isNutritionistTyping,
+    unreadCoachCount,
+    unreadNutritionistCount,
     sendMessage, 
-    clearChat 
+    clearChat,
   } = useNotifications();
+
+  const isNutritionist = activeChatSpecialist === 'nutritionist';
+  const activeMessages = isNutritionist ? nutritionistMessages : chatMessages;
+  const activeSpecialist = isNutritionist ? nutritionistInfo : coachInfo;
+  const isActiveTyping = isNutritionist ? isNutritionistTyping : isCoachTyping;
 
   const [inputText, setInputText] = useState('');
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
-  const [showCoachInfoModal, setShowCoachInfoModal] = useState(false);
+  const [showSpecialistInfoModal, setShowSpecialistInfoModal] = useState(false);
   const [showCallModal, setShowCallModal] = useState(false);
   
   // Voice recording state
@@ -46,10 +59,10 @@ export function CoachChatTab() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Auto-scroll to bottom on mount and when messages change
+  // Auto-scroll to bottom on mount, specialist switch, and when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages, isCoachTyping]);
+  }, [activeMessages, isActiveTyping, activeChatSpecialist]);
 
   // Voice recording timer
   useEffect(() => {
@@ -70,10 +83,17 @@ export function CoachChatTab() {
     };
   }, [isRecordingVoice]);
 
+  const handleSelectSpecialist = (specialist: ChatSpecialist) => {
+    setShowOptionsMenu(false);
+    setPlayingAudioId(null);
+    setIsRecordingVoice(false);
+    setActiveChatSpecialist(specialist);
+  };
+
   // Handle Send text
   const handleSend = () => {
     if (!inputText.trim()) return;
-    sendMessage({ text: inputText });
+    sendMessage({ text: inputText }, activeChatSpecialist);
     setInputText('');
   };
 
@@ -87,7 +107,7 @@ export function CoachChatTab() {
   const handleSendVoice = () => {
     const duration = Math.max(2, recordingSeconds);
     setIsRecordingVoice(false);
-    sendMessage({ audioDurationSeconds: duration });
+    sendMessage({ audioDurationSeconds: duration }, activeChatSpecialist);
   };
 
   const handleCancelVoice = () => {
@@ -101,25 +121,31 @@ export function CoachChatTab() {
       const reader = new FileReader();
       reader.onload = () => {
         if (typeof reader.result === 'string') {
-          sendMessage({ 
-            imageUrl: reader.result, 
-            text: 'Enviei uma foto do treino / refeição para análise.' 
-          });
+          sendMessage(
+            {
+              imageUrl: reader.result,
+              text: isNutritionist
+                ? 'Enviei uma foto da minha refeição para análise nutricional.'
+                : 'Enviei uma foto do treino para análise técnica.',
+            },
+            activeChatSpecialist
+          );
         }
       };
       reader.readAsDataURL(file);
     }
+    e.target.value = '';
   };
 
   // Sample quick camera photos
   const handleSendPresetPhoto = (url: string, caption: string) => {
     setShowCameraModal(false);
-    sendMessage({ imageUrl: url, text: caption });
+    sendMessage({ imageUrl: url, text: caption }, activeChatSpecialist);
   };
 
   // Group messages by dateLabel
   const groupedMessages: { [date: string]: ChatMessage[] } = {};
-  chatMessages.forEach(msg => {
+  activeMessages.forEach(msg => {
     const date = msg.dateLabel || 'Hoje';
     if (!groupedMessages[date]) {
       groupedMessages[date] = [];
@@ -128,7 +154,7 @@ export function CoachChatTab() {
   });
 
   return (
-    <div className="flex flex-col flex-1 h-full min-h-[500px] relative">
+    <div className="flex flex-col flex-1 min-h-0 h-full relative overflow-hidden">
       {/* Hidden file input */}
       <input 
         type="file" 
@@ -138,46 +164,99 @@ export function CoachChatTab() {
         className="hidden" 
       />
 
-      {/* Coach Info Bar */}
-      <div className="px-5 py-2.5 bg-[#0d0d0d] border-b border-zinc-800/80 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-2.5">
-          <div className="relative cursor-pointer" onClick={() => setShowCoachInfoModal(true)}>
+      {/* Specialist Switcher Tabs: Treinador vs Nutricionista */}
+      <div className="grid grid-cols-2 bg-[#0a0a0a] border-b border-zinc-800/80 shrink-0 z-20">
+        <button
+          type="button"
+          onClick={() => handleSelectSpecialist('coach')}
+          className={`relative py-2.5 px-3 text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer ${
+            !isNutritionist
+              ? 'text-[#F77F00]'
+              : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          <Dumbbell className="w-3.5 h-3.5 shrink-0" />
+          <span>Treinador</span>
+          {unreadCoachCount > 0 && (
+            <span
+              style={{ color: '#ffffff' }}
+              className="text-[9px] min-w-[16px] h-4 px-1 rounded-full bg-[#F77F00] font-bold inline-flex items-center justify-center"
+            >
+              {unreadCoachCount}
+            </span>
+          )}
+          {!isNutritionist && (
+            <span className="absolute bottom-0 inset-x-6 h-[2px] rounded-full bg-[#F77F00]" />
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleSelectSpecialist('nutritionist')}
+          className={`relative py-2.5 px-3 text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer ${
+            isNutritionist
+              ? 'text-[#F77F00]'
+              : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          <Utensils className="w-3.5 h-3.5 shrink-0" />
+          <span>Nutricionista</span>
+          {unreadNutritionistCount > 0 && (
+            <span
+              style={{ color: '#ffffff' }}
+              className="text-[9px] min-w-[16px] h-4 px-1 rounded-full bg-[#F77F00] font-bold inline-flex items-center justify-center"
+            >
+              {unreadNutritionistCount}
+            </span>
+          )}
+          {isNutritionist && (
+            <span className="absolute bottom-0 inset-x-6 h-[2px] rounded-full bg-[#F77F00]" />
+          )}
+        </button>
+      </div>
+
+      {/* Specialist Info Bar */}
+      <div className="px-5 py-2.5 bg-[#0d0d0d] border-b border-zinc-800/80 flex items-center justify-between shrink-0 z-10">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="relative cursor-pointer shrink-0" onClick={() => setShowSpecialistInfoModal(true)}>
             <img
-              src={coachInfo.avatarUrl}
-              alt={coachInfo.name}
+              src={activeSpecialist.avatarUrl}
+              alt={activeSpecialist.name}
               className="w-9 h-9 rounded-full object-cover border-2 border-orange-500/40"
               referrerPolicy="no-referrer"
             />
             <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-black" />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <h3 className="text-white text-xs font-bold leading-tight">
-                {coachInfo.name}
+              <h3 className="text-white text-xs font-bold leading-tight truncate">
+                {activeSpecialist.name}
               </h3>
-              <span className="text-[9px] bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1 rounded font-semibold">
-                PRO
+              <span className="text-[9px] bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1.5 py-0.5 rounded font-semibold shrink-0">
+                {isNutritionist ? 'NUTRI' : 'PT'}
               </span>
             </div>
             <p className="text-emerald-400 text-[10px] leading-tight flex items-center gap-1 mt-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>{coachInfo.status}</span>
+              <span>{activeSpecialist.status}</span>
             </p>
           </div>
         </div>
 
         {/* Action icons */}
-        <div className="flex items-center gap-1 relative">
+        <div className="flex items-center gap-1 relative shrink-0">
           <button
+            type="button"
             onClick={() => setShowCallModal(true)}
             className="p-2 rounded-xl text-zinc-400 hover:text-orange-500 hover:bg-zinc-800/60 transition-colors cursor-pointer"
-            title="Ligar ao Treinador"
-            aria-label="Ligar ao Treinador"
+            title={isNutritionist ? 'Ligar à Nutricionista' : 'Ligar ao Treinador'}
+            aria-label={isNutritionist ? 'Ligar à Nutricionista' : 'Ligar ao Treinador'}
           >
             <Phone className="w-4 h-4" />
           </button>
 
           <button
+            type="button"
             onClick={() => setShowOptionsMenu(!showOptionsMenu)}
             className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800/60 transition-colors cursor-pointer"
             title="Mais Opções"
@@ -188,18 +267,20 @@ export function CoachChatTab() {
 
           {/* Options Dropdown Menu */}
           {showOptionsMenu && (
-            <div className="absolute right-0 top-10 w-48 bg-[#181818] border border-zinc-800 rounded-xl shadow-xl z-30 py-1 animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute right-0 top-10 w-52 bg-[#181818] border border-zinc-800 rounded-xl shadow-xl z-30 py-1 animate-in fade-in zoom-in-95 duration-150">
               <button
+                type="button"
                 onClick={() => {
                   setShowOptionsMenu(false);
-                  setShowCoachInfoModal(true);
+                  setShowSpecialistInfoModal(true);
                 }}
                 className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800/70 hover:text-white flex items-center gap-2 cursor-pointer"
               >
                 <Info className="w-3.5 h-3.5 text-zinc-400" />
-                <span>Perfil do Treinador</span>
+                <span>{isNutritionist ? 'Perfil da Nutricionista' : 'Perfil do Treinador'}</span>
               </button>
               <button
+                type="button"
                 onClick={() => {
                   setShowOptionsMenu(false);
                   setShowCallModal(true);
@@ -211,9 +292,10 @@ export function CoachChatTab() {
               </button>
               <div className="border-t border-zinc-800 my-1" />
               <button
+                type="button"
                 onClick={() => {
                   setShowOptionsMenu(false);
-                  clearChat();
+                  clearChat(activeChatSpecialist);
                 }}
                 className="w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2 cursor-pointer"
               >
@@ -226,11 +308,16 @@ export function CoachChatTab() {
       </div>
 
       {/* Messages Scroll Area */}
-      <div className="flex-1 px-4 py-3 space-y-4 overflow-y-auto hide-scrollbar">
+      <div
+        key={activeChatSpecialist}
+        className="flex-1 min-h-0 px-4 py-3 space-y-4 overflow-y-auto overscroll-y-contain hide-scrollbar animate-in fade-in duration-150"
+      >
         {/* End-to-end encryption note */}
         <div className="flex items-center justify-center gap-1.5 py-1">
           <span className="text-[10px] text-zinc-500 bg-[#111111] border border-zinc-800/80 px-2.5 py-1 rounded-full text-center">
-            🔒 Canal privado e seguro com o teu Personal Trainer
+            {isNutritionist
+              ? '🔒 Canal privado e seguro com a tua Nutricionista'
+              : '🔒 Canal privado e seguro com o teu Personal Trainer'}
           </span>
         </div>
 
@@ -254,11 +341,11 @@ export function CoachChatTab() {
                     isStudent ? 'justify-end' : 'justify-start'
                   }`}
                 >
-                  {/* Coach Avatar if coach */}
+                  {/* Specialist Avatar */}
                   {!isStudent && (
                     <img
-                      src={coachInfo.avatarUrl}
-                      alt={coachInfo.name}
+                      src={activeSpecialist.avatarUrl}
+                      alt={activeSpecialist.name}
                       className="w-7 h-7 rounded-full object-cover shrink-0 mb-0.5 border border-zinc-800"
                       referrerPolicy="no-referrer"
                     />
@@ -272,10 +359,10 @@ export function CoachChatTab() {
                         : 'bg-[#181818] border border-zinc-800/80 text-white rounded-bl-xs'
                     }`}
                   >
-                    {/* Sender name for Coach */}
+                    {/* Sender name for specialist */}
                     {!isStudent && (
                       <span className="text-[10px] font-bold text-orange-400 block mb-1">
-                        {coachInfo.name}
+                        {activeSpecialist.name}
                       </span>
                     )}
 
@@ -333,17 +420,23 @@ export function CoachChatTab() {
 
                     {/* Message text */}
                     {message.text && (
-                      <p className={`text-xs leading-relaxed ${
-                        isStudent ? 'text-white font-medium' : 'text-zinc-200'
-                      }`}>
+                      <p
+                        style={isStudent ? { color: '#ffffff' } : undefined}
+                        className={`text-xs leading-relaxed ${
+                          isStudent ? 'font-medium' : 'text-zinc-200'
+                        }`}
+                      >
                         {message.text}
                       </p>
                     )}
 
                     {/* Timestamp & Status */}
-                    <div className={`flex items-center justify-end gap-1 mt-1 text-[9px] ${
-                      isStudent ? 'text-white/80' : 'text-zinc-500'
-                    }`}>
+                    <div
+                      style={isStudent ? { color: 'rgba(255,255,255,0.85)' } : undefined}
+                      className={`flex items-center justify-end gap-1 mt-1 text-[9px] ${
+                        isStudent ? '' : 'text-zinc-500'
+                      }`}
+                    >
                       <span>{message.timestamp}</span>
 
                       {isStudent && (
@@ -358,7 +451,7 @@ export function CoachChatTab() {
                             <CheckCheck className="w-3 h-3" />
                           )}
                           {message.status === 'read' && (
-                            <CheckCheck className="w-3 h-3 text-white font-black" />
+                            <CheckCheck className="w-3 h-3 font-black" />
                           )}
                         </span>
                       )}
@@ -370,12 +463,12 @@ export function CoachChatTab() {
           </div>
         ))}
 
-        {/* Coach is typing bubble */}
-        {isCoachTyping && (
+        {/* Specialist is typing bubble */}
+        {isActiveTyping && (
           <div className="flex items-end gap-2 animate-in fade-in duration-200">
             <img
-              src={coachInfo.avatarUrl}
-              alt={coachInfo.name}
+              src={activeSpecialist.avatarUrl}
+              alt={activeSpecialist.name}
               className="w-7 h-7 rounded-full object-cover shrink-0 mb-0.5 border border-zinc-800"
               referrerPolicy="no-referrer"
             />
@@ -384,7 +477,7 @@ export function CoachChatTab() {
               <span className="w-2 h-2 rounded-full bg-orange-500 animate-bounce [animation-delay:-0.15s]" />
               <span className="w-2 h-2 rounded-full bg-orange-500 animate-bounce" />
               <span className="text-[10px] text-zinc-400 ml-1 font-medium">
-                {coachInfo.name} está a escrever...
+                {activeSpecialist.name} está a escrever...
               </span>
             </div>
           </div>
@@ -395,7 +488,7 @@ export function CoachChatTab() {
 
       {/* Voice Recording Active Bar */}
       {isRecordingVoice ? (
-        <div className="p-3 bg-[#161616] border-t border-zinc-800 flex items-center justify-between gap-3 animate-in slide-from-bottom-2 duration-150">
+        <div className="p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-[#161616] border-t border-zinc-800 flex items-center justify-between gap-3 shrink-0 animate-in slide-from-bottom-2 duration-150">
           <div className="flex items-center gap-3">
             <span className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
             <div className="flex items-center gap-2">
@@ -409,23 +502,26 @@ export function CoachChatTab() {
 
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={handleCancelVoice}
               className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold cursor-pointer"
             >
               Cancelar
             </button>
             <button
+              type="button"
               onClick={handleSendVoice}
-              className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold flex items-center gap-1 shadow-lg shadow-orange-500/20 cursor-pointer"
+              style={{ color: '#ffffff' }}
+              className="px-3.5 py-1.5 rounded-xl bg-[#F77F00] hover:bg-orange-600 text-xs font-bold flex items-center gap-1 shadow-lg shadow-orange-500/20 cursor-pointer"
             >
-              <Send className="w-3.5 h-3.5 text-white" />
+              <Send className="w-3.5 h-3.5" />
               <span>Enviar</span>
             </button>
           </div>
         </div>
       ) : (
         /* Fixed Bottom Composer Bar */
-        <div className="p-3 bg-[#111111] border-t border-zinc-800/80 sticky bottom-0 z-20">
+        <div className="p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-[#111111] border-t border-zinc-800/80 shrink-0 z-20">
           <div className="flex items-center gap-1.5">
             {/* Attachment Button */}
             <button
@@ -456,7 +552,11 @@ export function CoachChatTab() {
                 value={inputText}
                 onChange={e => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Mensagem..."
+                placeholder={
+                  isNutritionist
+                    ? 'Mensagem para a Nutricionista...'
+                    : 'Mensagem para o Treinador...'
+                }
                 className="w-full bg-[#181818] border border-zinc-800 focus:border-orange-500 text-white placeholder-zinc-500 text-xs rounded-xl px-3.5 py-2.5 outline-none transition-colors"
               />
             </div>
@@ -479,11 +579,12 @@ export function CoachChatTab() {
               <button
                 type="button"
                 onClick={handleSend}
-                className="p-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-all shadow-md shadow-orange-500/20 cursor-pointer flex items-center justify-center shrink-0"
+                style={{ color: '#ffffff' }}
+                className="p-2.5 bg-[#F77F00] hover:bg-orange-600 rounded-xl transition-all shadow-md shadow-orange-500/20 cursor-pointer flex items-center justify-center shrink-0"
                 title="Enviar mensagem"
                 aria-label="Enviar"
               >
-                <Send className="w-4 h-4 text-white" />
+                <Send className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -492,59 +593,116 @@ export function CoachChatTab() {
 
       {/* Quick Camera Preset Modal */}
       {showCameraModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4">
-          <div className="bg-[#141414] border border-zinc-800 rounded-t-3xl sm:rounded-2xl w-full max-w-[380px] p-5 shadow-2xl animate-in slide-from-bottom duration-200">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowCameraModal(false);
+          }}
+          className="fixed inset-0 z-[260] flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm p-0 sm:p-4"
+        >
+          <div className="bg-[#141414] border border-zinc-800 rounded-t-3xl sm:rounded-2xl w-full max-w-[380px] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl animate-in slide-from-bottom duration-200">
             <div className="flex items-center justify-between pb-3 border-b border-zinc-800 mb-3">
               <div className="flex items-center gap-2">
                 <Camera className="w-4 h-4 text-orange-500" />
-                <h4 className="text-white text-xs font-bold">Câmara & Fotos do Treino</h4>
+                <h4 className="text-white text-xs font-bold">
+                  {isNutritionist ? 'Câmara & Fotos das Refeições' : 'Câmara & Fotos do Treino'}
+                </h4>
               </div>
-              <button onClick={() => setShowCameraModal(false)} className="text-zinc-400 hover:text-white p-1">
+              <button
+                type="button"
+                onClick={() => setShowCameraModal(false)}
+                className="text-zinc-400 hover:text-white p-1 cursor-pointer"
+                aria-label="Fechar"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
             
             <p className="text-zinc-400 text-xs mb-3">
-              Escolhe uma fotografia para enviar diretamente ao Coach André:
+              Escolhe uma fotografia para enviar diretamente para {activeSpecialist.name}:
             </p>
 
             <div className="grid grid-cols-2 gap-2 mb-4">
-              <button
-                onClick={() => handleSendPresetPhoto(
-                  'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=500&auto=format&fit=crop&q=80',
-                  'Coach, tirei foto à execução do exercício para confirmares a postura!'
-                )}
-                className="group relative rounded-xl overflow-hidden border border-zinc-800 text-left p-1 bg-black hover:border-orange-500 transition-colors cursor-pointer"
-              >
-                <img
-                  src="https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=300&auto=format&fit=crop&q=80"
-                  alt="Postura do Treino"
-                  className="w-full h-24 object-cover rounded-lg group-hover:scale-105 transition-transform"
-                />
-                <span className="text-[10px] text-zinc-300 font-semibold block px-1 py-1">
-                  Execução Técnica
-                </span>
-              </button>
+              {isNutritionist ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleSendPresetPhoto(
+                      'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=500&auto=format&fit=crop&q=80',
+                      'Dra. Inês, esta foi a minha refeição pós-treino (arroz, frango e vegetais). As porções estão bem equilibradas?'
+                    )}
+                    className="group relative rounded-xl overflow-hidden border border-zinc-800 text-left p-1 bg-black hover:border-orange-500 transition-colors cursor-pointer"
+                  >
+                    <img
+                      src="https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=300&auto=format&fit=crop&q=80"
+                      alt="Refeição Pós-Treino"
+                      className="w-full h-24 object-cover rounded-lg group-hover:scale-105 transition-transform"
+                    />
+                    <span className="text-[10px] text-zinc-300 font-semibold block px-1 py-1">
+                      Refeição Pós-Treino
+                    </span>
+                  </button>
 
-              <button
-                onClick={() => handleSendPresetPhoto(
-                  'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=500&auto=format&fit=crop&q=80',
-                  'Esta foi a minha refeição pós-treino (arroz, frango e vegetais). Está bem equilibrada?'
-                )}
-                className="group relative rounded-xl overflow-hidden border border-zinc-800 text-left p-1 bg-black hover:border-orange-500 transition-colors cursor-pointer"
-              >
-                <img
-                  src="https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=300&auto=format&fit=crop&q=80"
-                  alt="Refeição"
-                  className="w-full h-24 object-cover rounded-lg group-hover:scale-105 transition-transform"
-                />
-                <span className="text-[10px] text-zinc-300 font-semibold block px-1 py-1">
-                  Refeição Pós-Treino
-                </span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSendPresetPhoto(
+                      'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&auto=format&fit=crop&q=80',
+                      'Enviei o meu almoço de hoje para confirmares se está alinhado com o plano de Dia de Treino.'
+                    )}
+                    className="group relative rounded-xl overflow-hidden border border-zinc-800 text-left p-1 bg-black hover:border-orange-500 transition-colors cursor-pointer"
+                  >
+                    <img
+                      src="https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=300&auto=format&fit=crop&q=80"
+                      alt="Prato Equilibrado"
+                      className="w-full h-24 object-cover rounded-lg group-hover:scale-105 transition-transform"
+                    />
+                    <span className="text-[10px] text-zinc-300 font-semibold block px-1 py-1">
+                      Almoço Equilibrado
+                    </span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleSendPresetPhoto(
+                      'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=500&auto=format&fit=crop&q=80',
+                      'Coach, tirei foto à execução do exercício para confirmares a postura!'
+                    )}
+                    className="group relative rounded-xl overflow-hidden border border-zinc-800 text-left p-1 bg-black hover:border-orange-500 transition-colors cursor-pointer"
+                  >
+                    <img
+                      src="https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=300&auto=format&fit=crop&q=80"
+                      alt="Postura do Treino"
+                      className="w-full h-24 object-cover rounded-lg group-hover:scale-105 transition-transform"
+                    />
+                    <span className="text-[10px] text-zinc-300 font-semibold block px-1 py-1">
+                      Execução Técnica
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSendPresetPhoto(
+                      'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=500&auto=format&fit=crop&q=80',
+                      'Treino de hoje concluído! Deixo o registo da carga final.'
+                    )}
+                    className="group relative rounded-xl overflow-hidden border border-zinc-800 text-left p-1 bg-black hover:border-orange-500 transition-colors cursor-pointer"
+                  >
+                    <img
+                      src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=300&auto=format&fit=crop&q=80"
+                      alt="Treino Concluído"
+                      className="w-full h-24 object-cover rounded-lg group-hover:scale-105 transition-transform"
+                    />
+                    <span className="text-[10px] text-zinc-300 font-semibold block px-1 py-1">
+                      Registo de Treino
+                    </span>
+                  </button>
+                </>
+              )}
             </div>
 
             <button
+              type="button"
               onClick={() => {
                 setShowCameraModal(false);
                 fileInputRef.current?.click();
@@ -558,38 +716,49 @@ export function CoachChatTab() {
         </div>
       )}
 
-      {/* Coach Info Modal */}
-      {showCoachInfoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      {/* Specialist Info Modal */}
+      {showSpecialistInfoModal && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowSpecialistInfoModal(false);
+          }}
+          className="fixed inset-0 z-[260] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+        >
           <div className="bg-[#141414] border border-zinc-800 rounded-3xl w-full max-w-[340px] p-5 shadow-2xl text-center">
             <img
-              src={coachInfo.avatarUrl}
-              alt={coachInfo.name}
+              src={activeSpecialist.avatarUrl}
+              alt={activeSpecialist.name}
               className="w-20 h-20 rounded-full object-cover mx-auto border-4 border-orange-500/30 mb-3 shadow-lg"
               referrerPolicy="no-referrer"
             />
-            <h3 className="text-white text-base font-bold">{coachInfo.name}</h3>
-            <p className="text-orange-400 text-xs font-medium">{coachInfo.role}</p>
-            <p className="text-zinc-500 text-[11px] mt-1">{coachInfo.club}</p>
+            <h3 className="text-white text-base font-bold">{activeSpecialist.name}</h3>
+            <p className="text-orange-400 text-xs font-medium">{activeSpecialist.role}</p>
+            <p className="text-zinc-500 text-[11px] mt-1">{activeSpecialist.club}</p>
 
             <div className="bg-[#0c0c0c] rounded-2xl p-3 border border-zinc-800/80 my-4 text-left space-y-2">
-              <div className="flex justify-between text-xs">
+              <div className="flex justify-between gap-2 text-xs">
                 <span className="text-zinc-500">Contacto:</span>
-                <span className="text-zinc-200 font-mono font-medium">{coachInfo.phone}</span>
+                <span className="text-zinc-200 font-mono font-medium">{activeSpecialist.phone}</span>
               </div>
-              <div className="flex justify-between text-xs">
+              <div className="flex justify-between gap-2 text-xs">
                 <span className="text-zinc-500">Disponibilidade:</span>
-                <span className="text-emerald-400 font-medium">Seg - Sex (07:00 - 20:00)</span>
+                <span className="text-emerald-400 font-medium text-right">
+                  {activeSpecialist.availability || 'Seg - Sex (08:00 - 20:00)'}
+                </span>
               </div>
-              <div className="flex justify-between text-xs">
+              <div className="flex justify-between gap-2 text-xs">
                 <span className="text-zinc-500">Especialidade:</span>
-                <span className="text-zinc-200 font-medium">Hipertrofia & Força</span>
+                <span className="text-zinc-200 font-medium text-right">
+                  {activeSpecialist.specialty || (isNutritionist ? 'Nutrição Desportiva' : 'Hipertrofia & Força')}
+                </span>
               </div>
             </div>
 
             <button
-              onClick={() => setShowCoachInfoModal(false)}
-              className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs transition-colors cursor-pointer"
+              type="button"
+              onClick={() => setShowSpecialistInfoModal(false)}
+              style={{ color: '#ffffff' }}
+              className="w-full py-2.5 rounded-xl bg-[#F77F00] hover:bg-orange-600 font-bold text-xs transition-colors cursor-pointer"
             >
               Fechar
             </button>
@@ -599,26 +768,35 @@ export function CoachChatTab() {
 
       {/* Simulated Call Modal */}
       {showCallModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowCallModal(false);
+          }}
+          className="fixed inset-0 z-[260] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200"
+        >
           <div className="bg-[#111111] border border-zinc-800 rounded-3xl w-full max-w-[320px] p-6 text-center shadow-2xl">
             <div className="relative w-24 h-24 mx-auto mb-4">
               <span className="absolute inset-0 rounded-full bg-orange-500/20 animate-ping" />
               <img
-                src={coachInfo.avatarUrl}
-                alt={coachInfo.name}
+                src={activeSpecialist.avatarUrl}
+                alt={activeSpecialist.name}
                 className="w-full h-full rounded-full object-cover border-4 border-orange-500 relative z-10"
                 referrerPolicy="no-referrer"
               />
             </div>
-            <h3 className="text-white text-base font-bold">{coachInfo.name}</h3>
+            <h3 className="text-white text-base font-bold">{activeSpecialist.name}</h3>
             <p className="text-orange-400 text-xs animate-pulse mt-1">A chamar por voz...</p>
             <p className="text-zinc-500 text-[11px] mt-2">
-              O treinador recebe o alerta de chamada no seu dispositivo PR1ME Coach.
+              {isNutritionist
+                ? 'A nutricionista recebe o alerta de chamada no seu dispositivo EVOLV Pro.'
+                : 'O treinador recebe o alerta de chamada no seu dispositivo EVOLV Coach.'}
             </p>
 
             <button
+              type="button"
               onClick={() => setShowCallModal(false)}
-              className="mt-6 w-full py-3 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-red-500/30 transition-all cursor-pointer"
+              style={{ color: '#ffffff' }}
+              className="mt-6 w-full py-3 rounded-2xl bg-red-500 hover:bg-red-600 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-red-500/30 transition-all cursor-pointer"
             >
               <Phone className="w-4 h-4 rotate-135" />
               <span>Desligar Chamada</span>

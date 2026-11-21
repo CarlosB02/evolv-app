@@ -72,6 +72,26 @@ export interface DailyCheckIn {
   dayNumber: number; // e.g., 12, 13
 }
 
+export type CheckInTrainedOption = 'sim' | 'nao' | 'descanso';
+export type CheckInSleepOption = '<5h' | '5-6h' | '7-8h' | '9h+';
+export type CheckInDietOption = 'totalmente' | 'quase' | 'pouco' | 'nao';
+
+export interface DailyCheckInRecord {
+  date: string; // YYYY-MM-DD
+  weightKg: number | null;
+  trained: CheckInTrainedOption | null;
+  sleepHours: CheckInSleepOption | null;
+  dietPlan: CheckInDietOption | null;
+  steps: number | null;
+  waterLiters: number | null;
+  updatedAt?: string;
+}
+
+export interface DailyCheckInGoals {
+  stepsGoal: number;
+  waterGoalLiters: number;
+}
+
 export interface WeeklySummary {
   workoutsDone: number;
   workoutsPlanned: number;
@@ -138,6 +158,8 @@ export interface AppNotification {
   targetTab?: 'agenda' | 'dieta' | 'evolucao' | 'treino' | 'home';
 }
 
+export type ChatSpecialist = 'coach' | 'nutritionist';
+
 export interface ChatMessage {
   id: string;
   sender: 'coach' | 'student';
@@ -157,6 +179,8 @@ export interface CoachInfo {
   status: string;
   phone: string;
   club: string;
+  specialty?: string;
+  availability?: string;
 }
 
 export interface CardioSession {

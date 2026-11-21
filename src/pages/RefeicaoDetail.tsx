@@ -13,13 +13,34 @@ import {
   Save, 
   X, 
   CheckCircle2,
-  Sparkles
+  FileText
 } from 'lucide-react';
 import { SubstituirAlimentoModal, FoodItemData } from '../components/diet/SubstituirAlimentoModal';
 
 interface RefeicaoDetailProps {
   onBack: () => void;
   title: string;
+}
+
+function getMealNote(title: string): string {
+  const normalized = title
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+  if (normalized.includes('pequeno')) {
+    return 'Pesar os alimentos em cru. Beber um copo de água ao acordar.';
+  }
+  if (normalized.includes('almoco')) {
+    return 'Temperar com ervas aromáticas e limão. Evitar molhos extra.';
+  }
+  if (normalized.includes('lanche')) {
+    return 'Consumir 60 a 90 min antes do treino e manter boa hidratação.';
+  }
+  if (normalized.includes('jantar')) {
+    return 'Refeição leve para melhor digestão. Medir o azeite em cru.';
+  }
+  return 'Respeitar as quantidades indicadas e temperar com ervas a gosto.';
 }
 
 export function RefeicaoDetail({ onBack, title }: RefeicaoDetailProps) {
@@ -274,20 +295,6 @@ export function RefeicaoDetail({ onBack, title }: RefeicaoDetailProps) {
 
       <div className="flex flex-col">
         
-        {/* HERO IMAGE */}
-        <div className="w-full h-[200px] rounded-[24px] overflow-hidden mb-5 border border-zinc-800/60 relative group shadow-lg">
-          <img 
-            src="https://images.unsplash.com/photo-1482049016688-2d3e1b311543?q=80&w=800&auto=format&fit=crop" 
-            alt="Refeição" 
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-4">
-            <span className="text-white font-bold text-[17px] drop-shadow-md">
-              {title}
-            </span>
-          </div>
-        </div>
-
         {/* TABS DE OPÇÕES */}
         <div className="flex bg-[#0a0a0a] border border-zinc-800/80 rounded-[14px] p-1 mb-5">
           {[1, 2, 3].map((opt) => {
@@ -308,46 +315,56 @@ export function RefeicaoDetail({ onBack, title }: RefeicaoDetailProps) {
           })}
         </div>
 
-        {/* PAINEL DE MACROS TOTAIS */}
-        <div className="grid grid-cols-4 gap-2 bg-[#0a0a0a] border border-zinc-800/80 rounded-[18px] py-4 px-2 mb-5 shadow-sm">
-          <div className="flex flex-col items-center justify-center gap-1 border-r border-zinc-800/60">
-            <div className="flex items-center gap-1.5">
-              <Flame className="w-4 h-4 text-orange-500" />
-              <span className="text-white font-bold text-[14px] leading-none">
-                {totalMacros.calories}
-              </span>
+        {/* PAINEL DE MACROS TOTAIS + NOTAS */}
+        <div className="bg-[#0a0a0a] border border-zinc-800/80 rounded-[18px] mb-5 shadow-sm overflow-hidden">
+          <div className="grid grid-cols-4 gap-2 py-4 px-2">
+            <div className="flex flex-col items-center justify-center gap-1 border-r border-zinc-800/60">
+              <div className="flex items-center gap-1.5">
+                <Flame className="w-4 h-4 text-orange-500" />
+                <span className="text-white font-bold text-[14px] leading-none">
+                  {totalMacros.calories}
+                </span>
+              </div>
+              <span className="text-zinc-500 text-[10px] font-medium">kcal</span>
             </div>
-            <span className="text-zinc-500 text-[10px] font-medium">kcal</span>
+
+            <div className="flex flex-col items-center justify-center gap-1 border-r border-zinc-800/60">
+              <div className="flex items-center gap-1.5">
+                <Beef className="w-4 h-4 text-orange-500" />
+                <span className="text-white font-bold text-[14px] leading-none">
+                  {totalMacros.protein}g
+                </span>
+              </div>
+              <span className="text-zinc-500 text-[10px] font-medium">Proteína</span>
+            </div>
+
+            <div className="flex flex-col items-center justify-center gap-1 border-r border-zinc-800/60">
+              <div className="flex items-center gap-1.5">
+                <Wheat className="w-4 h-4 text-orange-500" />
+                <span className="text-white font-bold text-[14px] leading-none">
+                  {totalMacros.carbs}g
+                </span>
+              </div>
+              <span className="text-zinc-500 text-[10px] font-medium">Carboidratos</span>
+            </div>
+
+            <div className="flex flex-col items-center justify-center gap-1">
+              <div className="flex items-center gap-1.5">
+                <Leaf className="w-4 h-4 text-orange-500" />
+                <span className="text-white font-bold text-[14px] leading-none">
+                  {totalMacros.fat}g
+                </span>
+              </div>
+              <span className="text-zinc-500 text-[10px] font-medium">Gorduras</span>
+            </div>
           </div>
 
-          <div className="flex flex-col items-center justify-center gap-1 border-r border-zinc-800/60">
-            <div className="flex items-center gap-1.5">
-              <Beef className="w-4 h-4 text-orange-500" />
-              <span className="text-white font-bold text-[14px] leading-none">
-                {totalMacros.protein}g
-              </span>
-            </div>
-            <span className="text-zinc-500 text-[10px] font-medium">Proteína</span>
-          </div>
-
-          <div className="flex flex-col items-center justify-center gap-1 border-r border-zinc-800/60">
-            <div className="flex items-center gap-1.5">
-              <Wheat className="w-4 h-4 text-orange-500" />
-              <span className="text-white font-bold text-[14px] leading-none">
-                {totalMacros.carbs}g
-              </span>
-            </div>
-            <span className="text-zinc-500 text-[10px] font-medium">Carboidratos</span>
-          </div>
-
-          <div className="flex flex-col items-center justify-center gap-1">
-            <div className="flex items-center gap-1.5">
-              <Leaf className="w-4 h-4 text-orange-500" />
-              <span className="text-white font-bold text-[14px] leading-none">
-                {totalMacros.fat}g
-              </span>
-            </div>
-            <span className="text-zinc-500 text-[10px] font-medium">Gorduras</span>
+          <div className="border-t border-zinc-800/70 px-3.5 py-2.5 flex items-start gap-2">
+            <FileText className="w-3.5 h-3.5 text-[#F77F00] shrink-0 mt-0.5" />
+            <p className="text-[11.5px] text-zinc-400 leading-snug">
+              <span className="text-zinc-200 font-semibold">Notas:</span>{' '}
+              {getMealNote(title)}
+            </p>
           </div>
         </div>
 

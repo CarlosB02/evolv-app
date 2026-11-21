@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   ChevronLeft, 
   History, 
@@ -22,6 +22,23 @@ import { CardioSession } from '../types';
 import { MeusRegistosCardio } from './MeusRegistosCardio';
 import { FinalizarCardio } from './FinalizarCardio';
 import { useScrollToTop } from '../utils/scrollToTop';
+
+const CARDIO_EQUIPMENT_OPTIONS = [
+  'Passadeira',
+  'Bicicleta Estática',
+  'Elíptica',
+  'Remo',
+  'Escadas / Stairmaster',
+  'Corrida Exterior',
+] as const;
+
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
 
 interface RegistoCardioProps {
   onBack: () => void;
@@ -57,8 +74,62 @@ export function RegistoCardio({ onBack }: RegistoCardioProps) {
   useScrollToTop([showHistoryPage, showFinalizePage]);
   const [isNotesExpanded, setIsNotesExpanded] = useState(false);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
-  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [isEquipmentDropdownOpen, setIsEquipmentDropdownOpen] = useState(false);
+  const [equipmentInput, setEquipmentInput] = useState<string>(config.equipment);
+  const [hasTypedEquipment, setHasTypedEquipment] = useState(false);
+  const equipmentDropdownRef = useRef<HTMLDivElement>(null);
+  const equipmentInputRef = useRef<HTMLInputElement>(null);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEquipmentInput(config.equipment);
+  }, [config.equipment]);
+
+  // Fechar dropdown de equipamento ao clicar fora ou pressionar Escape
+  useEffect(() => {
+    if (!isEquipmentDropdownOpen) return;
+
+    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
+      if (
+        equipmentDropdownRef.current &&
+        !equipmentDropdownRef.current.contains(e.target as Node)
+      ) {
+        const trimmed = equipmentInput.trim();
+        if (trimmed) {
+          const matchedPreset = CARDIO_EQUIPMENT_OPTIONS.find(
+            (opt) => normalizeSearchText(opt) === normalizeSearchText(trimmed)
+          );
+          const resolved = matchedPreset ?? trimmed;
+          if (resolved !== config.equipment) {
+            updateConfig({ equipment: resolved });
+          }
+          setEquipmentInput(resolved);
+        } else {
+          setEquipmentInput(config.equipment);
+        }
+        setIsEquipmentDropdownOpen(false);
+        setHasTypedEquipment(false);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setEquipmentInput(config.equipment);
+        setIsEquipmentDropdownOpen(false);
+        setHasTypedEquipment(false);
+        equipmentInputRef.current?.blur();
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isEquipmentDropdownOpen, equipmentInput, config.equipment, updateConfig]);
 
   // New session modal form state
   const [newDuration, setNewDuration] = useState<number>(30);
@@ -69,12 +140,6 @@ export function RegistoCardio({ onBack }: RegistoCardioProps) {
   const [newBpm, setNewBpm] = useState<number>(135);
   const [newPeriod, setNewPeriod] = useState<string>('Pós-treino');
   const [newNotes, setNewNotes] = useState<string>('');
-
-  // Edit config modal form state
-  const [editEquipment, setEditEquipment] = useState<string>(config.equipment);
-  const [editSpeed, setEditSpeed] = useState<number>(config.speed);
-  const [editIncline, setEditIncline] = useState<number>(config.incline);
-  const [editTargetMinutes, setEditTargetMinutes] = useState<number>(config.targetMinutesPerDay || 60);
 
   // Quick note modal state
   const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
@@ -142,26 +207,41 @@ export function RegistoCardio({ onBack }: RegistoCardioProps) {
     setTimeout(() => setSaveSuccessMessage(null), 3000);
   };
 
-  const handleOpenConfigModal = () => {
-    setEditEquipment(config.equipment);
-    setEditSpeed(config.speed);
-    setEditIncline(config.incline);
-    setEditTargetMinutes(config.targetMinutesPerDay || 60);
-    setIsConfigModalOpen(true);
+  const handleSelectEquipment = (equipment: string) => {
+    const trimmed = equipment.trim();
+    if (!trimmed) return;
+    const matchedPreset = CARDIO_EQUIPMENT_OPTIONS.find(
+      (opt) => normalizeSearchText(opt) === normalizeSearchText(trimmed)
+    );
+    const resolved = matchedPreset ?? trimmed;
+    updateConfig({ equipment: resolved });
+    setEquipmentInput(resolved);
+    setIsEquipmentDropdownOpen(false);
+    setHasTypedEquipment(false);
+    equipmentInputRef.current?.blur();
   };
 
-  const handleSaveConfig = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateConfig({
-      equipment: editEquipment,
-      speed: Number(editSpeed),
-      incline: Number(editIncline),
-      targetMinutesPerDay: Number(editTargetMinutes),
-    });
-    setIsConfigModalOpen(false);
-    setSaveSuccessMessage('Configuração atualizada com sucesso!');
-    setTimeout(() => setSaveSuccessMessage(null), 2500);
+  const handleClearEquipmentInput = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEquipmentInput('');
+    setHasTypedEquipment(true);
+    setIsEquipmentDropdownOpen(true);
+    equipmentInputRef.current?.focus();
   };
+
+  const trimmedEquipmentInput = equipmentInput.trim();
+  const normalizedEquipmentInput = normalizeSearchText(trimmedEquipmentInput);
+  const filteredEquipmentOptions =
+    !hasTypedEquipment || !normalizedEquipmentInput
+      ? CARDIO_EQUIPMENT_OPTIONS
+      : CARDIO_EQUIPMENT_OPTIONS.filter((opt) =>
+          normalizeSearchText(opt).includes(normalizedEquipmentInput)
+        );
+  const isCustomEquipmentCandidate =
+    normalizedEquipmentInput.length > 0 &&
+    !CARDIO_EQUIPMENT_OPTIONS.some(
+      (opt) => normalizeSearchText(opt) === normalizedEquipmentInput
+    );
 
   const handleAddQuickNote = (e: React.FormEvent) => {
     e.preventDefault();
@@ -583,43 +663,201 @@ export function RegistoCardio({ onBack }: RegistoCardioProps) {
       </div>
 
       {/* 6. CONFIGURAÇÃO */}
-      <div className="bg-[#0a0a0a] border border-zinc-800/60 rounded-2xl p-4 flex flex-col">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2.5">
-            <SlidersHorizontal className="w-4 h-4 text-orange-500 shrink-0" />
-            <h3 className="text-[13px] font-semibold text-white tracking-wide">
-              Configuração
-            </h3>
-          </div>
-
-          <button
-            onClick={handleOpenConfigModal}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-orange-500/30 text-orange-500 hover:bg-orange-500/10 text-[11px] font-medium transition-colors cursor-pointer"
-          >
-            <span>Editar configuração</span>
-          </button>
+      <div className="bg-[#0a0a0a] border border-zinc-800/60 rounded-2xl p-4 flex flex-col gap-3">
+        <div className="flex items-center gap-2.5">
+          <SlidersHorizontal className="w-4 h-4 text-orange-500 shrink-0" />
+          <h3 className="text-[13px] font-semibold text-white tracking-wide">
+            Configuração
+          </h3>
         </div>
 
-        {/* Único bloco com os 3 parâmetros divididos por linha simples */}
-        <div className="bg-zinc-900/50 border border-zinc-800/60 rounded-xl grid grid-cols-3 divide-x divide-zinc-800/80 p-3">
-          <div className="pr-3">
-            <span className="text-[10px] text-zinc-500 font-medium block mb-0.5">Equipamento</span>
-            <p className="text-white text-xs font-semibold truncate" title={config.equipment}>
-              {config.equipment}
-            </p>
+        {/* Linha superior: Dropdown editável de Equipamento */}
+        <div ref={equipmentDropdownRef} className="relative">
+          <div
+            onClick={() => {
+              setIsEquipmentDropdownOpen(true);
+              equipmentInputRef.current?.focus();
+            }}
+            className={`w-full rounded-xl bg-zinc-900/50 border px-3.5 py-2.5 flex items-center justify-between gap-2 transition-colors cursor-text ${
+              isEquipmentDropdownOpen
+                ? 'border-[#F77F00]'
+                : 'border-zinc-800/60 hover:border-[#F77F00]/60'
+            }`}
+          >
+            <div className="min-w-0 flex-1">
+              <label
+                htmlFor="cardio-equipment-input"
+                className="text-[10px] font-medium text-zinc-500 block leading-none mb-1 cursor-text"
+              >
+                Equipamento
+              </label>
+              <input
+                ref={equipmentInputRef}
+                id="cardio-equipment-input"
+                type="text"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={isEquipmentDropdownOpen}
+                aria-label="Equipamento de cardio"
+                value={equipmentInput}
+                placeholder="Escreve ou seleciona equipamento..."
+                onFocus={() => {
+                  setIsEquipmentDropdownOpen(true);
+                  setHasTypedEquipment(false);
+                }}
+                onChange={(e) => {
+                  setEquipmentInput(e.target.value);
+                  setHasTypedEquipment(true);
+                  setIsEquipmentDropdownOpen(true);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (equipmentInput.trim()) {
+                      handleSelectEquipment(equipmentInput);
+                    } else {
+                      setEquipmentInput(config.equipment);
+                      setIsEquipmentDropdownOpen(false);
+                      setHasTypedEquipment(false);
+                      equipmentInputRef.current?.blur();
+                    }
+                  }
+                }}
+                className="w-full bg-transparent text-xs font-semibold text-white placeholder:text-zinc-500 focus:outline-none truncate"
+              />
+            </div>
+
+            <div className="flex items-center gap-1 shrink-0">
+              {isEquipmentDropdownOpen && equipmentInput.length > 0 && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={handleClearEquipmentInput}
+                  aria-label="Limpar texto do equipamento"
+                  title="Limpar texto"
+                  className="w-6 h-6 rounded-full bg-zinc-800/90 hover:bg-zinc-700 text-zinc-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              <button
+                type="button"
+                aria-label="Abrir lista de equipamentos"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isEquipmentDropdownOpen) {
+                    if (equipmentInput.trim()) {
+                      handleSelectEquipment(equipmentInput);
+                    } else {
+                      setEquipmentInput(config.equipment);
+                      setIsEquipmentDropdownOpen(false);
+                      setHasTypedEquipment(false);
+                      equipmentInputRef.current?.blur();
+                    }
+                  } else {
+                    setIsEquipmentDropdownOpen(true);
+                    setHasTypedEquipment(false);
+                    equipmentInputRef.current?.focus();
+                  }
+                }}
+                className="w-6 h-6 flex items-center justify-center cursor-pointer"
+              >
+                <ChevronDown
+                  className={`w-4 h-4 text-[#F77F00] shrink-0 transition-transform duration-200 ${
+                    isEquipmentDropdownOpen ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+            </div>
           </div>
 
-          <div className="px-3">
+          {isEquipmentDropdownOpen && (
+            <div
+              role="listbox"
+              aria-label="Lista de equipamentos de cardio"
+              className="absolute left-0 right-0 top-full mt-2 z-40 rounded-[18px] bg-[#111111] border border-zinc-800 shadow-[0_18px_40px_rgba(0,0,0,0.65)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+            >
+              <div
+                className="h-[1px] w-full bg-gradient-to-r from-transparent via-[#F77F00]/70 to-transparent"
+                aria-hidden="true"
+              />
+
+              <div className="py-1.5 max-h-[260px] overflow-y-auto hide-scrollbar">
+                {isCustomEquipmentCandidate && hasTypedEquipment && (
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleSelectEquipment(trimmedEquipmentInput)}
+                    className="w-full min-h-[44px] px-4 py-2.5 flex items-center justify-between gap-3 text-left bg-[#F77F00]/10 hover:bg-[#F77F00]/15 transition-colors cursor-pointer border-b border-zinc-800/70"
+                  >
+                    <span className="text-xs font-bold text-[#F77F00] truncate">
+                      Usar “{trimmedEquipmentInput}”
+                    </span>
+                    <Plus className="w-4 h-4 text-[#F77F00] shrink-0" />
+                  </button>
+                )}
+
+                {filteredEquipmentOptions.map((option) => {
+                  const isActive =
+                    normalizeSearchText(config.equipment) ===
+                    normalizeSearchText(option);
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      role="option"
+                      aria-selected={isActive}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => handleSelectEquipment(option)}
+                      className={`w-full min-h-[44px] px-4 py-2.5 flex items-center justify-between gap-3 text-left transition-colors cursor-pointer ${
+                        isActive
+                          ? 'bg-[#F77F00]/12'
+                          : 'hover:bg-[#F77F00]/10 active:bg-[#F77F00]/15'
+                      }`}
+                    >
+                      <span
+                        className={`text-xs font-bold truncate ${
+                          isActive ? 'text-[#F77F00]' : 'text-white'
+                        }`}
+                      >
+                        {option}
+                      </span>
+
+                      {isActive && (
+                        <Check className="w-4 h-4 text-[#F77F00] shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Linha inferior: 3 parâmetros definidos pelo PT divididos em 3 partes */}
+        <div className="bg-zinc-900/50 border border-zinc-800/60 rounded-xl grid grid-cols-3 divide-x divide-zinc-800/80 p-3">
+          <div className="pr-3">
             <span className="text-[10px] text-zinc-500 font-medium block mb-0.5">Velocidade</span>
-            <p className="text-white text-xs font-semibold">
+            <p className="text-white text-xs font-semibold tabular-nums">
               {config.speed} <span className="text-[10px] text-zinc-400 font-normal">{speedUnit}</span>
             </p>
           </div>
 
-          <div className="pl-3">
+          <div className="px-3">
             <span className="text-[10px] text-zinc-500 font-medium block mb-0.5">Inclinação</span>
-            <p className="text-white text-xs font-semibold">
+            <p className="text-white text-xs font-semibold tabular-nums">
               {config.incline}%
+            </p>
+          </div>
+
+          <div className="pl-3">
+            <span className="text-[10px] text-zinc-500 font-medium block mb-0.5">Meta Diária</span>
+            <p className="text-white text-xs font-semibold tabular-nums">
+              {targetMinutes} <span className="text-[10px] text-zinc-400 font-normal">min</span>
             </p>
           </div>
         </div>
@@ -827,109 +1065,7 @@ export function RegistoCardio({ onBack }: RegistoCardioProps) {
         </div>
       )}
 
-      {/* ========================================= */}
-      {/* MODAL / BOTTOM SHEET: EDITAR CONFIGURAÇÃO */}
-      {/* ========================================= */}
-      {isConfigModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-[420px] bg-zinc-950 border border-zinc-800 rounded-t-[28px] sm:rounded-[28px] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-500">
-                  <SlidersHorizontal className="w-4 h-4" />
-                </div>
-                <h3 className="text-base font-bold text-white">Editar Configuração</h3>
-              </div>
-              <button 
-                onClick={() => setIsConfigModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-zinc-900 text-zinc-400 hover:text-white flex items-center justify-center"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            <form onSubmit={handleSaveConfig} className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
-                  Equipamento Utilizado
-                </label>
-                <input
-                  type="text"
-                  value={editEquipment}
-                  onChange={(e) => setEditEquipment(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-semibold text-sm focus:outline-none focus:border-orange-500"
-                  placeholder="Ex: Passadeira Profissional"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
-                    Velocidade ({speedUnit})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="1"
-                    max="40"
-                    value={editSpeed}
-                    onChange={(e) => setEditSpeed(parseFloat(e.target.value) || 0)}
-                    className="w-full px-3.5 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-semibold text-sm focus:outline-none focus:border-orange-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
-                    Inclinação (%)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    max="25"
-                    value={editIncline}
-                    onChange={(e) => setEditIncline(parseFloat(e.target.value) || 0)}
-                    className="w-full px-3.5 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-semibold text-sm focus:outline-none focus:border-orange-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
-                  Meta Diária Recomendada (minutos)
-                </label>
-                <input
-                  type="number"
-                  min="10"
-                  max="180"
-                  value={editTargetMinutes}
-                  onChange={(e) => setEditTargetMinutes(parseInt(e.target.value) || 60)}
-                  className="w-full px-3.5 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-semibold text-sm focus:outline-none focus:border-orange-500"
-                  required
-                />
-              </div>
-
-              <div className="pt-2 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsConfigModalOpen(false)}
-                  className="flex-1 py-3 rounded-xl bg-zinc-900 text-zinc-300 font-semibold text-xs border border-zinc-800 hover:bg-zinc-800 transition-colors cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white font-bold text-xs shadow-lg shadow-orange-500/20 transition-all cursor-pointer"
-                >
-                  Guardar Alterações
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* ========================================= */}
       {/* MODAL: ADICIONAR NOTA RÁPIDA */}

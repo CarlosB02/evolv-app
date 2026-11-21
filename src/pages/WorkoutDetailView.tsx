@@ -150,40 +150,29 @@ export function WorkoutDetailView({
         </div>
       </div>
 
-      {/* 3. RESUMO DO TREINO (CARD COM 3 INDICADORES: ÍCONE, TÍTULO E VALOR EM 3 LINHAS) */}
+      {/* 3. RESUMO DO TREINO (CARD COM 2 INDICADORES: Nº DE EXERCÍCIOS E DURAÇÃO DO ÚLTIMO TREINO) */}
       <div className="bg-[#0a0a0a] border border-zinc-800/80 rounded-[20px] p-4 shadow-md">
-        <div className="grid grid-cols-3 gap-2 divide-x divide-zinc-800/60">
+        <div className="grid grid-cols-2 gap-2 divide-x divide-zinc-800/60">
           
-          {/* Indicador 1: Duração */}
-          <div className="flex flex-col items-center sm:items-start px-1 sm:px-2 text-center sm:text-left">
-            <Clock className="w-4 h-4 text-orange-500 mb-1 shrink-0" strokeWidth={2.2} />
-            <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider block leading-tight">
-              Duração
-            </span>
-            <span className="text-xs font-bold text-white truncate block mt-0.5 leading-tight">
-              {currentWorkout.durationEstimated}
-            </span>
-          </div>
-
-          {/* Indicador 2: Calorias */}
-          <div className="flex flex-col items-center sm:items-start px-1 sm:px-2 text-center sm:text-left">
-            <Flame className="w-4 h-4 text-orange-500 mb-1 shrink-0" strokeWidth={2.2} />
-            <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider block leading-tight">
-              Calorias
-            </span>
-            <span className="text-xs font-bold text-white truncate block mt-0.5 leading-tight">
-              {currentWorkout.caloriesEstimated}
-            </span>
-          </div>
-
-          {/* Indicador 3: Equipamento */}
-          <div className="flex flex-col items-center sm:items-start px-1 sm:px-2 text-center sm:text-left">
+          {/* Indicador 1: Nº de Exercícios */}
+          <div className="flex flex-col items-center px-2 text-center">
             <Dumbbell className="w-4 h-4 text-orange-500 mb-1 shrink-0" strokeWidth={2.2} />
             <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider block leading-tight">
-              Equipamento
+              Nº de Exercícios
             </span>
-            <span className="text-xs font-bold text-white truncate block mt-0.5 leading-tight" title={currentWorkout.equipment}>
-              {currentWorkout.equipment}
+            <span className="text-sm font-bold text-white tabular-nums block mt-0.5 leading-tight">
+              {currentWorkout.exercises.length}
+            </span>
+          </div>
+
+          {/* Indicador 2: Duração do último treino */}
+          <div className="flex flex-col items-center px-2 text-center">
+            <Clock className="w-4 h-4 text-orange-500 mb-1 shrink-0" strokeWidth={2.2} />
+            <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider block leading-tight">
+              Último Treino
+            </span>
+            <span className="text-sm font-bold text-white tabular-nums block mt-0.5 leading-tight">
+              {currentWorkout.durationEstimated.replace(/^~\s*/, '')}
             </span>
           </div>
 

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Bell,
+  Calendar,
   ChevronRight,
   Dumbbell,
   FileText,
@@ -9,6 +11,7 @@ import {
   Paperclip,
   User,
   Utensils,
+  UtensilsCrossed,
   X,
 } from 'lucide-react';
 import { RefeicaoDetail } from './RefeicaoDetail';
@@ -164,6 +167,7 @@ export function Dieta() {
   const [selectedPlan, setSelectedPlan] = useState<DietPlan | null>(null);
   const [selectedMeal, setSelectedMeal] = useState<string | null>(null);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [isFreeMealOpen, setIsFreeMealOpen] = useState(false);
 
   useScrollToTop([selectedMeal, selectedPlan?.id]);
 
@@ -258,115 +262,236 @@ export function Dieta() {
         </div>
       )}
 
-      {/* ÁREA COMPACTA DE NOTAS DO PT (APENAS LEITURA) */}
-      {ptNote && (
+      {/* BLOCOS INFERIORES: REFEIÇÃO LIVRE (ESQUERDA) + NOTAS (DIREITA) */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Bloco Refeição Livre (lado esquerdo) */}
         <button
           type="button"
-          onClick={() => setIsNotesOpen(true)}
-          className="w-full min-h-[64px] rounded-[20px] bg-[#0a0a0a] hover:bg-zinc-900/60 border border-zinc-800/80 hover:border-[#F77F00]/50 px-4 py-3.5 flex items-center justify-between gap-3 text-left transition-colors cursor-pointer group"
+          onClick={() => setIsFreeMealOpen(true)}
+          className="min-h-[78px] rounded-[20px] bg-[#0a0a0a] hover:bg-zinc-900/60 border border-zinc-800/80 hover:border-[#F77F00]/50 px-3.5 py-3.5 flex items-center justify-between gap-2 text-left transition-colors cursor-pointer group"
         >
-          <div className="flex items-center gap-3.5 min-w-0 flex-1">
-            <FileText className="w-5 h-5 text-[#F77F00] shrink-0" strokeWidth={2} />
+          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+            <UtensilsCrossed
+              className="w-4 h-4 text-[#F77F00] shrink-0 mt-0.5"
+              strokeWidth={2.2}
+            />
             <div className="min-w-0 flex-1">
-              <h3 className="text-sm font-bold text-white leading-tight">
-                Notas
+              <h3 className="text-[13px] font-bold text-white leading-tight truncate">
+                Refeição livre
               </h3>
-              <p className="text-xs text-zinc-400 truncate mt-0.5">
-                {ptNote.message}
+              <p className="text-[11px] text-amber-400 font-medium truncate mt-1">
+                1x por semana
+              </p>
+              <p className="text-[10px] text-zinc-400 truncate mt-0.5">
+                Sábado · 1.500 kcal
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            {hasAttachments && (
-              <Paperclip
-                className="w-4 h-4 text-zinc-400 group-hover:text-[#F77F00] transition-colors"
-                strokeWidth={2}
-                aria-label="Contém anexo"
-              />
-            )}
-            <ChevronRight className="w-4 h-4 text-[#F77F00] group-hover:translate-x-0.5 transition-transform" />
-          </div>
+          <ChevronRight className="w-4 h-4 text-[#F77F00] shrink-0 group-hover:translate-x-0.5 transition-transform" />
         </button>
-      )}
-      </div>
 
-      {/* SHEET DE LEITURA DA NOTA DO PT */}
-      {isNotesOpen && ptNote && (
-        <div
-          className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200"
-          onClick={() => setIsNotesOpen(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-[#111111] border border-zinc-800 rounded-t-[28px] sm:rounded-[24px] w-full max-w-[420px] max-h-[85vh] flex flex-col shadow-2xl animate-in slide-from-bottom duration-200 overflow-hidden"
+        {/* Bloco Notas (lado direito) */}
+        {ptNote && (
+          <button
+            type="button"
+            onClick={() => setIsNotesOpen(true)}
+            className="min-h-[78px] rounded-[20px] bg-[#0a0a0a] hover:bg-zinc-900/60 border border-zinc-800/80 hover:border-[#F77F00]/50 px-3.5 py-3.5 flex items-center justify-between gap-2 text-left transition-colors cursor-pointer group"
           >
-            {/* Cabeçalho */}
-            <div className="px-5 pt-4 pb-3 border-b border-zinc-800/80 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2.5">
-                <FileText className="w-5 h-5 text-[#F77F00]" />
-                <h3 className="text-base font-bold text-white tracking-tight">
-                  Notas
-                </h3>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setIsNotesOpen(false)}
-                aria-label="Fechar"
-                className="min-w-[40px] min-h-[40px] flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Mensagem do PT (apenas leitura) */}
-            <div className="p-5 space-y-4 overflow-y-auto hide-scrollbar">
-              <div className="flex items-center gap-2 text-xs text-zinc-400">
-                <span className="font-semibold text-white">{ptNote.author}</span>
-                <span aria-hidden="true">·</span>
-                <span>{ptNote.updatedAt}</span>
-              </div>
-
-              <div className="rounded-2xl bg-[#0a0a0a] border border-zinc-800/80 p-4">
-                <p className="text-sm text-zinc-200 leading-relaxed whitespace-pre-wrap">
+            <div className="flex items-start gap-2.5 min-w-0 flex-1">
+              <FileText
+                className="w-4 h-4 text-[#F77F00] shrink-0 mt-0.5"
+                strokeWidth={2.2}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-[13px] font-bold text-white leading-tight truncate">
+                    Notas
+                  </h3>
+                  {hasAttachments && (
+                    <Paperclip
+                      className="w-3 h-3 text-zinc-400 group-hover:text-[#F77F00] shrink-0 transition-colors"
+                      strokeWidth={2}
+                      aria-label="Contém anexo"
+                    />
+                  )}
+                </div>
+                <p className="text-[11px] text-zinc-400 line-clamp-2 mt-1 leading-snug">
                   {ptNote.message}
                 </p>
               </div>
-
-              {ptNote.attachments && ptNote.attachments.length > 0 && (
-                <div className="space-y-2">
-                  {ptNote.attachments.map((att) => (
-                    <div
-                      key={att.id}
-                      className="flex items-center gap-3 px-3.5 py-3 rounded-2xl bg-[#0a0a0a] border border-zinc-800/80"
-                    >
-                      <Paperclip className="w-4 h-4 text-[#F77F00] shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-white truncate">
-                          {att.name}
-                        </p>
-                        <p className="text-[11px] text-zinc-400 mt-0.5">
-                          {att.sizeLabel}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setIsNotesOpen(false)}
-                style={{ color: '#ffffff' }}
-                className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-[#F77F00] hover:bg-[#e57300] text-xs font-bold transition-colors cursor-pointer"
-              >
-                Fechar
-              </button>
             </div>
-          </div>
-        </div>
-      )}
+
+            <ChevronRight className="w-4 h-4 text-[#F77F00] shrink-0 group-hover:translate-x-0.5 transition-transform" />
+          </button>
+        )}
+      </div>
+      </div>
+
+      {/* SHEET DE DETALHE: REFEIÇÃO LIVRE */}
+      {isFreeMealOpen &&
+        createPortal(
+          <div
+            className="fixed sm:absolute inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200"
+            onClick={() => setIsFreeMealOpen(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#111111] border border-zinc-800 rounded-t-[28px] sm:rounded-[24px] w-full max-w-[420px] max-h-[85dvh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200 overflow-hidden"
+            >
+              {/* Cabeçalho */}
+              <div className="px-5 pt-4 pb-3 border-b border-zinc-800/80 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <UtensilsCrossed className="w-5 h-5 text-[#F77F00]" />
+                  <h3 className="text-base font-bold text-white tracking-tight">
+                    Refeição Livre
+                  </h3>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsFreeMealOpen(false)}
+                  aria-label="Fechar"
+                  className="min-w-[40px] min-h-[40px] flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Conteúdo */}
+              <div className="p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-4 overflow-y-auto hide-scrollbar">
+                <div className="rounded-2xl bg-[#0a0a0a] border border-zinc-800/80 p-4 space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-zinc-400 flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-amber-400" />
+                      Frequência
+                    </span>
+                    <span className="text-white font-semibold">1x por semana</span>
+                  </div>
+
+                  <div className="h-[1px] bg-zinc-800/70" />
+
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-zinc-400 flex items-center gap-2">
+                      <Moon className="w-4 h-4 text-sky-400" />
+                      Dia sugerido
+                    </span>
+                    <span className="text-white font-semibold">Sábado à noite</span>
+                  </div>
+
+                  <div className="h-[1px] bg-zinc-800/70" />
+
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-zinc-400 flex items-center gap-2">
+                      <Flame className="w-4 h-4 text-[#F77F00]" />
+                      Referência calórica
+                    </span>
+                    <span className="text-[#F77F00] font-bold">~1.500 kcal</span>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-[#0a0a0a] border border-zinc-800/80 p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">
+                    Indicação do PT
+                  </p>
+                  <p className="text-xs text-zinc-200 leading-relaxed">
+                    Mantém as restantes refeições do dia dentro do plano, prioriza proteína ao longo do dia e reforça a hidratação. Aproveita sem culpa!
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsFreeMealOpen(false)}
+                  style={{ color: '#ffffff' }}
+                  className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-[#F77F00] hover:bg-[#e57300] text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.querySelector('.app-device-wrapper') || document.body
+        )}
+
+      {/* SHEET DE LEITURA DA NOTA DO PT */}
+      {isNotesOpen &&
+        ptNote &&
+        createPortal(
+          <div
+            className="fixed sm:absolute inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200"
+            onClick={() => setIsNotesOpen(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#111111] border border-zinc-800 rounded-t-[28px] sm:rounded-[24px] w-full max-w-[420px] max-h-[85dvh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200 overflow-hidden"
+            >
+              {/* Cabeçalho */}
+              <div className="px-5 pt-4 pb-3 border-b border-zinc-800/80 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <FileText className="w-5 h-5 text-[#F77F00]" />
+                  <h3 className="text-base font-bold text-white tracking-tight">
+                    Notas
+                  </h3>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsNotesOpen(false)}
+                  aria-label="Fechar"
+                  className="min-w-[40px] min-h-[40px] flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Mensagem do PT (apenas leitura) */}
+              <div className="p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-4 overflow-y-auto hide-scrollbar">
+                <div className="flex items-center gap-2 text-xs text-zinc-400">
+                  <span className="font-semibold text-white">{ptNote.author}</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{ptNote.updatedAt}</span>
+                </div>
+
+                <div className="rounded-2xl bg-[#0a0a0a] border border-zinc-800/80 p-4">
+                  <p className="text-sm text-zinc-200 leading-relaxed whitespace-pre-wrap">
+                    {ptNote.message}
+                  </p>
+                </div>
+
+                {ptNote.attachments && ptNote.attachments.length > 0 && (
+                  <div className="space-y-2">
+                    {ptNote.attachments.map((att) => (
+                      <div
+                        key={att.id}
+                        className="flex items-center gap-3 px-3.5 py-3 rounded-2xl bg-[#0a0a0a] border border-zinc-800/80"
+                      >
+                        <Paperclip className="w-4 h-4 text-[#F77F00] shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-semibold text-white truncate">
+                            {att.name}
+                          </p>
+                          <p className="text-[11px] text-zinc-400 mt-0.5">
+                            {att.sizeLabel}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsNotesOpen(false)}
+                  style={{ color: '#ffffff' }}
+                  className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-[#F77F00] hover:bg-[#e57300] text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.querySelector('.app-device-wrapper') || document.body
+        )}
     </>
   );
 }

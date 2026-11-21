@@ -364,12 +364,8 @@ export function CheckInChartsTab() {
     };
   }, [metric, periodDays]);
 
-  // Animação contínua de líquido + sensores reais de inclinação e aceleração (apenas na tab Água)
+  // Animação contínua (ondas + inclinação na Água; brasas/faíscas cinéticas nos Passos)
   useEffect(() => {
-    if (metric !== 'water') {
-      return;
-    }
-
     const prefersReducedMotion =
       typeof window !== 'undefined' &&
       window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -532,10 +528,9 @@ export function CheckInChartsTab() {
     };
   }, [metric, motionPermission]);
 
-  const handleWaterChartPointerMove = (
+  const handleChartPointerMove = (
     e: React.PointerEvent<HTMLDivElement>
   ) => {
-    if (isSteps) return;
     const rect = e.currentTarget.getBoundingClientRect();
     if (rect.width <= 0) return;
     const relX = ((e.clientX - rect.left) / rect.width) * 2 - 1; // -1..1
@@ -543,24 +538,22 @@ export function CheckInChartsTab() {
 
     if (lastPointerXRef.current !== null) {
       const dx = Math.abs(clamped - lastPointerXRef.current);
-      sloshImpulseRef.current = Math.min(1, sloshImpulseRef.current + dx * 1.8);
+      sloshImpulseRef.current = Math.min(1, sloshImpulseRef.current + dx * 1.6);
     }
     lastPointerXRef.current = clamped;
-    pointerTiltRef.current = clamped * 0.7;
+    pointerTiltRef.current = clamped * (isSteps ? 0.45 : 0.7);
   };
 
-  const handleWaterChartPointerLeave = () => {
+  const handleChartPointerLeave = () => {
     pointerTiltRef.current = 0;
     lastPointerXRef.current = null;
   };
 
   const handleSelectDay = (iso: string) => {
     setSelectedISO(iso);
-    if (!isSteps) {
-      sloshImpulseRef.current = Math.min(1, sloshImpulseRef.current + 0.55);
-      if (motionPermission === 'prompt') {
-        void requestMotionSensors();
-      }
+    sloshImpulseRef.current = Math.min(1, sloshImpulseRef.current + 0.55);
+    if (!isSteps && motionPermission === 'prompt') {
+      void requestMotionSensors();
     }
   };
 
@@ -835,10 +828,10 @@ export function CheckInChartsTab() {
           {/* SVG Bar Chart */}
           <div
             className="w-full"
-            onPointerMove={handleWaterChartPointerMove}
-            onPointerUp={handleWaterChartPointerLeave}
-            onPointerCancel={handleWaterChartPointerLeave}
-            onPointerLeave={handleWaterChartPointerLeave}
+            onPointerMove={handleChartPointerMove}
+            onPointerUp={handleChartPointerLeave}
+            onPointerCancel={handleChartPointerLeave}
+            onPointerLeave={handleChartPointerLeave}
           >
             <svg
               viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
@@ -849,7 +842,7 @@ export function CheckInChartsTab() {
               } nos últimos ${periodDays} dias`}
             >
               <defs>
-                {/* Gradientes laranja — Passos */}
+                {/* Gradientes laranja cinético — Passos */}
                 <linearGradient
                   id="checkin-bar-goal-grad"
                   x1="0"
@@ -857,8 +850,10 @@ export function CheckInChartsTab() {
                   x2="0"
                   y2="1"
                 >
-                  <stop offset="0%" stopColor="#FF9A2E" />
-                  <stop offset="100%" stopColor="#F77F00" />
+                  <stop offset="0%" stopColor="#FFC25C" />
+                  <stop offset="22%" stopColor="#FF9424" />
+                  <stop offset="65%" stopColor="#F77F00" />
+                  <stop offset="100%" stopColor="#C2410C" />
                 </linearGradient>
                 <linearGradient
                   id="checkin-bar-below-grad"
@@ -867,8 +862,30 @@ export function CheckInChartsTab() {
                   x2="0"
                   y2="1"
                 >
-                  <stop offset="0%" stopColor="#F77F00" stopOpacity="0.42" />
-                  <stop offset="100%" stopColor="#F77F00" stopOpacity="0.16" />
+                  <stop offset="0%" stopColor="#F77F00" stopOpacity="0.46" />
+                  <stop offset="60%" stopColor="#EA580C" stopOpacity="0.26" />
+                  <stop offset="100%" stopColor="#9A3412" stopOpacity="0.14" />
+                </linearGradient>
+                <radialGradient
+                  id="checkin-ember-halo-grad"
+                  cx="50%"
+                  cy="50%"
+                  r="50%"
+                >
+                  <stop offset="0%" stopColor="#FDBA74" stopOpacity="0.58" />
+                  <stop offset="55%" stopColor="#F77F00" stopOpacity="0.2" />
+                  <stop offset="100%" stopColor="#F77F00" stopOpacity="0" />
+                </radialGradient>
+                <linearGradient
+                  id="checkin-bar-shimmer-grad"
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop offset="0%" stopColor="#FEF08A" stopOpacity="0.34" />
+                  <stop offset="40%" stopColor="#FF9A2E" stopOpacity="0.12" />
+                  <stop offset="100%" stopColor="#F77F00" stopOpacity="0" />
                 </linearGradient>
 
                 {/* Gradientes azul líquido — Água */}
@@ -1002,7 +1019,8 @@ export function CheckInChartsTab() {
                 const isSelected = activeDay?.iso === item.day.iso;
                 const colRadius = periodDays === 7 ? 5 : 2.5;
 
-                // Caminho normal para Passos
+                // Geometria para Passos (energia / brasas cinéticas)
+                const isSteps7d = isSteps && periodDays === 7;
                 const stepsBarPath = isSteps
                   ? topRoundedBarPath(
                       item.x,
@@ -1012,6 +1030,17 @@ export function CheckInChartsTab() {
                       colRadius
                     )
                   : '';
+                const stepsColumnOutlinePath = isSteps7d
+                  ? topRoundedBarPath(item.x, PAD_TOP, item.w, PLOT_H, colRadius)
+                  : '';
+                const emberPulse =
+                  0.5 + 0.5 * Math.sin(liquidFrame.phase * 1.45 + idx * 1.1);
+                const spark1P =
+                  ((liquidFrame.phase * 0.24 + idx * 0.29) % 1 + 1) % 1;
+                const spark2P =
+                  ((liquidFrame.phase * 0.19 + idx * 0.61 + 0.37) % 1 + 1) % 1;
+                const spark3P =
+                  ((liquidFrame.phase * 0.28 + idx * 0.83 + 0.71) % 1 + 1) % 1;
 
                 // Geometria líquida para Água
                 const isWater7d = !isSteps && periodDays === 7;
@@ -1086,45 +1115,216 @@ export function CheckInChartsTab() {
                       />
                     )}
 
-                    {/* PASSOS — Barras laranja EVOLV */}
+                    {/* PASSOS — Energia cinética: brasas quentes + faíscas subtis nos dias na meta */}
                     {isSteps ? (
-                      stepsBarPath ? (
-                        <>
-                          {isSelected && (
-                            <path
-                              d={topRoundedBarPath(
-                                item.x - 1.5,
-                                currentY - 1.5,
-                                item.w + 3,
-                                currentH + 1.5,
-                                periodDays === 7 ? 6 : 3
-                              )}
-                              fill="none"
-                              stroke="#ffffff"
-                              strokeOpacity="0.7"
-                              strokeWidth="1.25"
-                            />
-                          )}
+                      <>
+                        {/* Silhueta subtil da coluna na vista 7 dias */}
+                        {isSteps7d && (
                           <path
-                            d={stepsBarPath}
-                            fill={
-                              item.day.metGoal || isSelected
-                                ? 'url(#checkin-bar-goal-grad)'
-                                : 'url(#checkin-bar-below-grad)'
-                            }
+                            d={stepsColumnOutlinePath}
+                            fill="#261206"
+                            fillOpacity={isSelected ? '0.32' : '0.16'}
+                            stroke="#F77F00"
+                            strokeOpacity={isSelected ? '0.42' : '0.12'}
+                            strokeWidth={isSelected ? '1.1' : '0.8'}
                           />
-                        </>
-                      ) : (
-                        <line
-                          x1={item.x + 1}
-                          y1={geometry.baselineY - 1.5}
-                          x2={item.x + item.w - 1}
-                          y2={geometry.baselineY - 1.5}
-                          stroke={isSelected ? '#F77F00' : '#3f3f46'}
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                        />
-                      )
+                        )}
+
+                        {stepsBarPath ? (
+                          <>
+                            {/* Halo quente discreto no topo dos dias que atingiram a meta */}
+                            {item.day.metGoal && localRaw > 0.65 && (
+                              <ellipse
+                                cx={item.centerX}
+                                cy={currentY + 1}
+                                rx={
+                                  isSteps7d
+                                    ? item.w * 0.68
+                                    : Math.max(4, item.w * 0.78)
+                                }
+                                ry={
+                                  (isSteps7d ? 6.5 : 3.5) +
+                                  emberPulse * (isSteps7d ? 2.2 : 1) +
+                                  liquidFrame.energy * 1.8
+                                }
+                                fill="url(#checkin-ember-halo-grad)"
+                                opacity={
+                                  (isSelected ? 0.85 : 0.6) +
+                                  emberPulse * 0.25
+                                }
+                              />
+                            )}
+
+                            {/* Destaque de seleção na vista 30 dias */}
+                            {!isSteps7d && isSelected && (
+                              <path
+                                d={topRoundedBarPath(
+                                  item.x - 1,
+                                  currentY - 1,
+                                  item.w + 2,
+                                  currentH + 1,
+                                  3
+                                )}
+                                fill="none"
+                                stroke="#FDBA74"
+                                strokeOpacity="0.78"
+                                strokeWidth="1"
+                              />
+                            )}
+
+                            {/* Corpo da barra */}
+                            <path
+                              d={stepsBarPath}
+                              fill={
+                                item.day.metGoal || isSelected
+                                  ? 'url(#checkin-bar-goal-grad)'
+                                  : 'url(#checkin-bar-below-grad)'
+                              }
+                            />
+
+                            {/* Reflexo vertical quente subtil (7 dias) */}
+                            {isSteps7d && currentH > 10 && (
+                              <rect
+                                x={item.x + 2.5}
+                                y={currentY + 4}
+                                width={2.2}
+                                height={Math.max(0, currentH - 8)}
+                                rx={1.1}
+                                fill="url(#checkin-bar-shimmer-grad)"
+                                opacity={
+                                  item.day.metGoal || isSelected ? 0.9 : 0.45
+                                }
+                              />
+                            )}
+
+                            {/* Crista luminosa de brasa no topo dos dias na meta */}
+                            {item.day.metGoal &&
+                              (isSteps7d ? (
+                                <line
+                                  x1={item.x + 4}
+                                  y1={currentY + 1.1}
+                                  x2={item.x + item.w - 4}
+                                  y2={currentY + 1.1}
+                                  stroke="#FEF08A"
+                                  strokeOpacity={
+                                    0.55 +
+                                    emberPulse * 0.35 +
+                                    liquidFrame.energy * 0.1
+                                  }
+                                  strokeWidth="1.4"
+                                  strokeLinecap="round"
+                                />
+                              ) : (
+                                <circle
+                                  cx={item.centerX}
+                                  cy={currentY + 1}
+                                  r={Math.max(1.2, item.w * 0.34)}
+                                  fill="#FEF08A"
+                                  fillOpacity={0.45 + emberPulse * 0.38}
+                                />
+                              ))}
+
+                            {/* Faíscas cinéticas a subir suavemente apenas nos dias na meta */}
+                            {item.day.metGoal &&
+                              localRaw > 0.72 &&
+                              (isSteps7d ? (
+                                <>
+                                  <circle
+                                    cx={
+                                      item.x +
+                                      item.w * 0.28 -
+                                      liquidFrame.tilt * spark1P * 6.5 +
+                                      Math.sin(
+                                        liquidFrame.phase * 1.4 + idx
+                                      ) *
+                                        2.1
+                                    }
+                                    cy={Math.max(
+                                      6,
+                                      currentY - 1 - spark1P * 19
+                                    )}
+                                    r={1.25 * (1 - spark1P * 0.45)}
+                                    fill={spark1P < 0.4 ? '#FEF08A' : '#FB923C'}
+                                    fillOpacity={
+                                      Math.sin(spark1P * Math.PI) *
+                                      (0.75 + liquidFrame.energy * 0.22)
+                                    }
+                                  />
+                                  <circle
+                                    cx={
+                                      item.x +
+                                      item.w * 0.56 -
+                                      liquidFrame.tilt * spark2P * 7.5 +
+                                      Math.cos(
+                                        liquidFrame.phase * 1.15 + idx * 1.7
+                                      ) *
+                                        2.4
+                                    }
+                                    cy={Math.max(
+                                      6,
+                                      currentY - 2 - spark2P * 23
+                                    )}
+                                    r={1.05 * (1 - spark2P * 0.45)}
+                                    fill={spark2P < 0.45 ? '#FDE68A' : '#F77F00'}
+                                    fillOpacity={
+                                      Math.sin(spark2P * Math.PI) *
+                                      (0.68 + liquidFrame.energy * 0.22)
+                                    }
+                                  />
+                                  <circle
+                                    cx={
+                                      item.x +
+                                      item.w * 0.76 -
+                                      liquidFrame.tilt * spark3P * 5.5 +
+                                      Math.sin(
+                                        liquidFrame.phase * 1.7 + idx * 2.3
+                                      ) *
+                                        1.7
+                                    }
+                                    cy={Math.max(
+                                      6,
+                                      currentY - 1 - spark3P * 15
+                                    )}
+                                    r={0.85 * (1 - spark3P * 0.4)}
+                                    fill="#FDBA74"
+                                    fillOpacity={
+                                      Math.sin(spark3P * Math.PI) * 0.62
+                                    }
+                                  />
+                                </>
+                              ) : (
+                                (idx % 2 === 0 || isSelected) && (
+                                  <circle
+                                    cx={
+                                      item.centerX -
+                                      liquidFrame.tilt * spark1P * 4 +
+                                      Math.sin(liquidFrame.phase + idx) * 1.1
+                                    }
+                                    cy={Math.max(
+                                      6,
+                                      currentY - 1 - spark1P * 12
+                                    )}
+                                    r={0.85 * (1 - spark1P * 0.4)}
+                                    fill={spark1P < 0.45 ? '#FEF08A' : '#FB923C'}
+                                    fillOpacity={
+                                      Math.sin(spark1P * Math.PI) * 0.65
+                                    }
+                                  />
+                                )
+                              ))}
+                          </>
+                        ) : (
+                          <line
+                            x1={item.x + 1}
+                            y1={geometry.baselineY - 1.5}
+                            x2={item.x + item.w - 1}
+                            y2={geometry.baselineY - 1.5}
+                            stroke={isSelected ? '#F77F00' : '#3f3f46'}
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                          />
+                        )}
+                      </>
                     ) : (
                       /* ÁGUA — Colunas com líquido azul animado e ondulação */
                       <>

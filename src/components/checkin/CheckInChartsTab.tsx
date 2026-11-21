@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Droplets, Footprints, Target } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Droplets, Footprints, Smartphone, Target } from 'lucide-react';
 import {
   addDaysISO,
   fromISODate,
@@ -8,6 +8,11 @@ import {
 
 type ChartMetric = 'steps' | 'water';
 type PeriodDays = 7 | 30;
+type MotionPermissionState = 'prompt' | 'granted' | 'denied';
+
+type SensorConstructorWithPermission = {
+  requestPermission?: () => Promise<'granted' | 'denied'>;
+};
 
 interface DayBarItem {
   iso: string;
@@ -22,8 +27,26 @@ interface DayBarItem {
 
 interface LiquidFrame {
   phase: number;
-  tilt: number; // -1..1
-  energy: number; // 0..1 extra slosh wave amplitude
+  tilt: number; // -1..1 (+ = inclinado para a direita)
+  energy: number; // 0..1 amplitude extra de ondulação
+}
+
+function browserRequiresMotionPermission(): boolean {
+  if (typeof window === 'undefined') return false;
+  const orientCtor = (
+    window as unknown as {
+      DeviceOrientationEvent?: SensorConstructorWithPermission;
+    }
+  ).DeviceOrientationEvent;
+  const motionCtor = (
+    window as unknown as {
+      DeviceMotionEvent?: SensorConstructorWithPermission;
+    }
+  ).DeviceMotionEvent;
+  return (
+    typeof orientCtor?.requestPermission === 'function' ||
+    typeof motionCtor?.requestPermission === 'function'
+  );
 }
 
 const WEEKDAY_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -106,7 +129,8 @@ function sampleWaveSurfacePoints(
   for (let i = 0; i <= segments; i += 1) {
     const t = i / segments;
     const px = startX + t * spanW;
-    const tiltOffset = (t - 0.5) * tiltPx;
+    // Gravidade real: inclinar para a direita (tiltPx > 0) sobe o nível à direita (menor y) e desce à esquerda (maior y)
+    const tiltOffset = -(t - 0.5) * tiltPx;
     const waveOffset = Math.sin(t * Math.PI * 1.45 + phase) * amp;
     const py = Math.min(maxY, Math.max(minY, surfaceY + tiltOffset + waveOffset));
     pts.push({ px, py });
@@ -161,6 +185,10 @@ export function CheckInChartsTab() {
   const [periodDays, setPeriodDays] = useState<PeriodDays>(7);
   const [selectedISO, setSelectedISO] = useState<string>(todayISO);
   const [animProgress, setAnimProgress] = useState<number>(1);
+  const [motionPermission, setMotionPermission] =
+    useState<MotionPermissionState>(() =>
+      browserRequiresMotionPermission() ? 'prompt' : 'granted'
+    );
   const [liquidFrame, setLiquidFrame] = useState<LiquidFrame>({
     phase: 0,
     tilt: 0,
@@ -170,7 +198,63 @@ export function CheckInChartsTab() {
   const targetTiltRef = useRef<number>(0);
   const pointerTiltRef = useRef<number>(0);
   const sloshImpulseRef = useRef<number>(0);
+  const shakeVelKickRef = useRef<number>(0);
+  const hasOrientationEventRef = useRef<boolean>(false);
   const lastPointerXRef = useRef<number | null>(null);
+
+  const requestMotionSensors = useCallback(async () => {
+    if (typeof window === 'undefined') return;
+    const orientCtor = (
+      window as unknown as {
+        DeviceOrientationEvent?: SensorConstructorWithPermission;
+      }
+    ).DeviceOrientationEvent;
+    const motionCtor = (
+      window as unknown as {
+        DeviceMotionEvent?: SensorConstructorWithPermission;
+      }
+    ).DeviceMotionEvent;
+
+    try {
+      let granted = false;
+
+      if (typeof orientCtor?.requestPermission === 'function') {
+        const res = await orientCtor.requestPermission();
+        if (res === 'granted') granted = true;
+      }
+
+      if (typeof motionCtor?.requestPermission === 'function') {
+        try {
+          const res = await motionCtor.requestPermission();
+          if (res === 'granted') granted = true;
+        } catch {
+          // Se o primeiro já autorizou, prosseguir
+        }
+      }
+
+      if (
+        typeof orientCtor?.requestPermission !== 'function' &&
+        typeof motionCtor?.requestPermission !== 'function'
+      ) {
+        granted = true;
+      }
+
+      setMotionPermission(granted ? 'granted' : 'denied');
+      if (granted) {
+        sloshImpulseRef.current = 0.7;
+      }
+    } catch {
+      // Caso o pedido não tenha partido de gesto suportado, manter 'prompt' para poder tentar novamente
+      setMotionPermission('prompt');
+    }
+  }, []);
+
+  const handleSelectMetric = (nextMetric: ChartMetric) => {
+    setMetric(nextMetric);
+    if (nextMetric === 'water' && motionPermission === 'prompt') {
+      void requestMotionSensors();
+    }
+  };
 
   const isSteps = metric === 'steps';
   const goalValue = isSteps ? goals.stepsGoal : goals.waterGoalLiters;
@@ -280,7 +364,7 @@ export function CheckInChartsTab() {
     };
   }, [metric, periodDays]);
 
-  // Animação contínua de líquido + inclinação do telemóvel (apenas na tab Água)
+  // Animação contínua de líquido + sensores reais de inclinação e aceleração (apenas na tab Água)
   useEffect(() => {
     if (metric !== 'water') {
       return;
@@ -295,20 +379,99 @@ export function CheckInChartsTab() {
       return;
     }
 
+    hasOrientationEventRef.current = false;
+
+    const getScreenAngle = (): number => {
+      if (typeof window === 'undefined') return 0;
+      const angle = window.screen?.orientation?.angle;
+      if (typeof angle === 'number') return angle;
+      const legacy = (window as unknown as { orientation?: number })
+        .orientation;
+      return typeof legacy === 'number' ? legacy : 0;
+    };
+
     const handleOrientation = (event: DeviceOrientationEvent) => {
-      if (typeof event.gamma !== 'number' || Number.isNaN(event.gamma)) return;
-      const clamped = Math.max(-35, Math.min(35, event.gamma));
-      const normalized = clamped / 35;
+      const { gamma, beta } = event;
+      if (typeof gamma !== 'number' || Number.isNaN(gamma)) return;
+
+      hasOrientationEventRef.current = true;
+      const screenAngle = getScreenAngle();
+      let rollDeg = gamma;
+
+      if (screenAngle === 90 && typeof beta === 'number') {
+        rollDeg = -beta;
+      } else if (
+        (screenAngle === -90 || screenAngle === 270) &&
+        typeof beta === 'number'
+      ) {
+        rollDeg = beta;
+      } else if (screenAngle === 180) {
+        rollDeg = -gamma;
+      }
+
+      const clamped = Math.max(-45, Math.min(45, rollDeg));
+      const normalized = clamped / 45;
       const delta = Math.abs(normalized - targetTiltRef.current);
-      if (delta > 0.04) {
-        sloshImpulseRef.current = Math.min(1, sloshImpulseRef.current + delta * 1.4);
+      if (delta > 0.025) {
+        sloshImpulseRef.current = Math.min(
+          1,
+          sloshImpulseRef.current + delta * 1.8
+        );
       }
       targetTiltRef.current = normalized;
     };
 
-    window.addEventListener('deviceorientation', handleOrientation, {
-      passive: true,
-    });
+    const handleMotion = (event: DeviceMotionEvent) => {
+      // Fallback de gravidade via acelerómetro (funciona em Android/iOS mesmo se deviceorientation não emitir gamma)
+      if (!hasOrientationEventRef.current && event.accelerationIncludingGravity) {
+        const ax = event.accelerationIncludingGravity.x;
+        const ay = event.accelerationIncludingGravity.y;
+        if (
+          typeof ax === 'number' &&
+          typeof ay === 'number' &&
+          !Number.isNaN(ax) &&
+          !Number.isNaN(ay)
+        ) {
+          // Unificar sinal entre iOS (ay < 0 em pé) e Android (ay > 0 em pé)
+          const gravitySign = ay < 0 ? 1 : -1;
+          const rollRad = Math.atan2(ax * gravitySign, Math.abs(ay) + 0.5);
+          const rollDeg = (rollRad * 180) / Math.PI;
+          const normalized = Math.max(-1, Math.min(1, rollDeg / 45));
+          const delta = Math.abs(normalized - targetTiltRef.current);
+          if (delta > 0.03) {
+            sloshImpulseRef.current = Math.min(
+              1,
+              sloshImpulseRef.current + delta * 1.6
+            );
+          }
+          targetTiltRef.current = normalized;
+        }
+      }
+
+      // Aceleração lateral real (abanar ou mover o telemóvel para o lado agita a água)
+      const accX = event.acceleration?.x;
+      if (typeof accX === 'number' && !Number.isNaN(accX)) {
+        const mag = Math.abs(accX);
+        if (mag > 0.45) {
+          const boost = Math.min(0.9, mag * 0.14);
+          sloshImpulseRef.current = Math.min(1, sloshImpulseRef.current + boost);
+          shakeVelKickRef.current = Math.max(
+            -3.5,
+            Math.min(3.5, shakeVelKickRef.current + accX * 0.35)
+          );
+        }
+      }
+    };
+
+    const attachSensors = motionPermission === 'granted';
+    if (attachSensors) {
+      window.addEventListener('deviceorientation', handleOrientation, {
+        passive: true,
+      });
+      window.addEventListener('devicemotion', handleMotion, {
+        passive: true,
+      });
+    }
 
     let rafId = 0;
     let lastTs = performance.now();
@@ -320,25 +483,31 @@ export function CheckInChartsTab() {
       const dt = Math.min(0.05, Math.max(0.001, (now - lastTs) / 1000));
       lastTs = now;
 
-      // Combinar inclinação do sensor com interação suave do ponteiro
+      // Combinar inclinação do sensor com interação suave do ponteiro/toque
       const desiredTilt = Math.max(
         -1,
         Math.min(1, targetTiltRef.current + pointerTiltRef.current)
       );
 
-      // Mola amortecida para movimento realista de líquido
-      const accel = (desiredTilt - currentTilt) * 18;
-      tiltVel = (tiltVel + accel * dt) * Math.exp(-4.8 * dt);
-      currentTilt += tiltVel * dt;
+      // Injetar impulso lateral de movimento do telemóvel
+      if (Math.abs(shakeVelKickRef.current) > 0.01) {
+        tiltVel += shakeVelKickRef.current;
+        shakeVelKickRef.current = 0;
+      }
 
-      // Energia extra de ondulação quando há movimento
+      // Mola amortecida para movimento realista de líquido com inércia
+      const accel = (desiredTilt - currentTilt) * 22;
+      tiltVel = (tiltVel + accel * dt) * Math.exp(-4.2 * dt);
+      currentTilt = Math.max(-1.15, Math.min(1.15, currentTilt + tiltVel * dt));
+
+      // Energia extra de ondulação quando há movimento/inclinação rápida
       sloshImpulseRef.current = Math.min(
         1,
-        sloshImpulseRef.current * Math.exp(-2.8 * dt) +
-          Math.abs(tiltVel) * dt * 0.9
+        sloshImpulseRef.current * Math.exp(-2.6 * dt) +
+          Math.abs(tiltVel) * dt * 1.15
       );
 
-      phase += dt * (2.35 + sloshImpulseRef.current * 1.6);
+      phase += dt * (2.35 + sloshImpulseRef.current * 2.1);
 
       setLiquidFrame({
         phase,
@@ -352,12 +521,16 @@ export function CheckInChartsTab() {
     rafId = requestAnimationFrame(loop);
 
     return () => {
-      window.removeEventListener('deviceorientation', handleOrientation);
+      if (attachSensors) {
+        window.removeEventListener('deviceorientation', handleOrientation);
+        window.removeEventListener('devicemotion', handleMotion);
+      }
       if (rafId) cancelAnimationFrame(rafId);
       pointerTiltRef.current = 0;
       lastPointerXRef.current = null;
+      shakeVelKickRef.current = 0;
     };
-  }, [metric]);
+  }, [metric, motionPermission]);
 
   const handleWaterChartPointerMove = (
     e: React.PointerEvent<HTMLDivElement>
@@ -373,7 +546,7 @@ export function CheckInChartsTab() {
       sloshImpulseRef.current = Math.min(1, sloshImpulseRef.current + dx * 1.8);
     }
     lastPointerXRef.current = clamped;
-    pointerTiltRef.current = clamped * 0.65;
+    pointerTiltRef.current = clamped * 0.7;
   };
 
   const handleWaterChartPointerLeave = () => {
@@ -385,6 +558,9 @@ export function CheckInChartsTab() {
     setSelectedISO(iso);
     if (!isSteps) {
       sloshImpulseRef.current = Math.min(1, sloshImpulseRef.current + 0.55);
+      if (motionPermission === 'prompt') {
+        void requestMotionSensors();
+      }
     }
   };
 
@@ -479,7 +655,7 @@ export function CheckInChartsTab() {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setMetric(tab.id)}
+              onClick={() => handleSelectMetric(tab.id)}
               className={`min-h-[42px] py-2.5 text-xs font-bold relative flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
                 isActive
                   ? isWaterTab
@@ -644,10 +820,24 @@ export function CheckInChartsTab() {
             </div>
           )}
 
+          {/* Atalho discreto para autorizar sensor de movimento no iOS (só visível se ainda for necessário) */}
+          {!isSteps && motionPermission === 'prompt' && (
+            <button
+              type="button"
+              onClick={() => void requestMotionSensors()}
+              className="w-full py-2 px-3 rounded-xl bg-sky-500/10 border border-sky-400/25 text-sky-300 text-[11px] font-semibold flex items-center justify-center gap-1.5 hover:bg-sky-500/15 transition-colors cursor-pointer"
+            >
+              <Smartphone className="w-3.5 h-3.5 shrink-0" />
+              <span>Ativar sensor de inclinação do telemóvel</span>
+            </button>
+          )}
+
           {/* SVG Bar Chart */}
           <div
             className="w-full"
             onPointerMove={handleWaterChartPointerMove}
+            onPointerUp={handleWaterChartPointerLeave}
+            onPointerCancel={handleWaterChartPointerLeave}
             onPointerLeave={handleWaterChartPointerLeave}
           >
             <svg
@@ -838,11 +1028,13 @@ export function CheckInChartsTab() {
                   const barPhaseOffset = idx * 0.85;
                   const baseAmp = periodDays === 7 ? 2.1 : 1.05;
                   const dynamicAmp =
-                    (baseAmp + liquidFrame.energy * (periodDays === 7 ? 2.4 : 1.0)) *
+                    (baseAmp +
+                      liquidFrame.energy * (periodDays === 7 ? 3.1 : 1.3)) *
                     Math.min(1, currentH / 14);
+                  // Inclinação fiel ao horizonte real conforme a rotação do telemóvel
                   const maxTiltPx = Math.min(
-                    currentH * 0.34,
-                    periodDays === 7 ? 7.5 : 2.8
+                    currentH * 0.72,
+                    item.w * (periodDays === 7 ? 0.92 : 0.78)
                   );
                   const tiltPx = liquidFrame.tilt * maxTiltPx;
                   const segments = periodDays === 7 ? 6 : 3;
@@ -983,13 +1175,14 @@ export function CheckInChartsTab() {
                               />
                             )}
 
-                            {/* Micro-bolhas a subir suavemente (7 dias) */}
+                            {/* Micro-bolhas a subir contra a gravidade (7 dias) */}
                             {isWater7d && currentH > 26 && localRaw > 0.7 && (
                               <>
                                 <circle
                                   cx={
                                     item.x +
-                                    item.w * 0.34 +
+                                    item.w * 0.34 -
+                                    liquidFrame.tilt * bubble1Progress * 4.5 +
                                     Math.sin(liquidFrame.phase + idx) * 1.1
                                   }
                                   cy={
@@ -1006,7 +1199,8 @@ export function CheckInChartsTab() {
                                 <circle
                                   cx={
                                     item.x +
-                                    item.w * 0.68 +
+                                    item.w * 0.68 -
+                                    liquidFrame.tilt * bubble2Progress * 4.5 +
                                     Math.cos(liquidFrame.phase * 0.9 + idx) * 1.0
                                   }
                                   cy={

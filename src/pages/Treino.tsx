@@ -97,9 +97,6 @@ export function Treino() {
         onStartWorkout={() => {
           setActiveRunningWorkout(selectedWorkoutDetail);
         }}
-        onUpdateWorkout={(updated) => {
-          setSelectedWorkoutDetail(updated);
-        }}
       />
     );
   }

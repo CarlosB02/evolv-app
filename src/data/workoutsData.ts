@@ -5,6 +5,7 @@ export interface ExerciseSet {
   weight: string;     // current logged weight
   reps: string;       // current logged reps
   rir: string;        // e.g. "2" (reps in reserve)
+  pse?: string;       // e.g. "8" (perceived exertion 1-10)
   completed: boolean;
 }
 
@@ -612,31 +613,31 @@ export const defaultWarmupRoutines: Record<string, WarmupRoutine> = {
     exercises: [
       {
         id: 'w-1',
+        name: 'Bicicleta ou Passadeira Ligeira',
+        durationOrReps: '5 min • Ritmo ligeiro',
+        muscleFocus: 'Aquecimento Geral',
+        image: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?q=80&w=400&auto=format&fit=crop'
+      },
+      {
+        id: 'w-2',
         name: 'Rotação e Mobilidade de Anca 90/90',
-        durationOrReps: '10 reps / lado',
+        durationOrReps: '60 seg • 30s por lado',
         muscleFocus: 'Articulação Coxofemoral',
         image: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=400&auto=format&fit=crop'
       },
       {
-        id: 'w-2',
+        id: 'w-3',
         name: 'Ponte de Glúteos com Miniband',
-        durationOrReps: '15 reps com pausa',
+        durationOrReps: '2 × 15 reps • Miniband leve',
         muscleFocus: 'Glúteo Máximo',
         image: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?q=80&w=400&auto=format&fit=crop'
       },
       {
-        id: 'w-3',
-        name: 'Agachamento Profundo com Alongamento Torácico',
-        durationOrReps: '10 reps lentas',
-        muscleFocus: 'Tornozelos e Anca',
-        image: 'https://images.unsplash.com/photo-1584824486509-112e4181ff6b?q=80&w=400&auto=format&fit=crop'
-      },
-      {
         id: 'w-4',
-        name: 'Passada com Afundo Dinâmico',
-        durationOrReps: '8 reps / perna',
-        muscleFocus: 'Flexores da Coxa & Quads',
-        image: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=400&auto=format&fit=crop'
+        name: 'Agachamento Goblet de Ativação',
+        durationOrReps: '2 × 10 reps • 8 kg',
+        muscleFocus: 'Anca & Quadríceps',
+        image: 'https://images.unsplash.com/photo-1584824486509-112e4181ff6b?q=80&w=400&auto=format&fit=crop'
       }
     ]
   },
@@ -647,24 +648,24 @@ export const defaultWarmupRoutines: Record<string, WarmupRoutine> = {
     exercises: [
       {
         id: 'wd-1',
-        name: 'Cat-Cow e Mobilidade Espinhal',
-        durationOrReps: '12 repetições',
-        muscleFocus: 'Coluna e Core',
-        image: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=400&auto=format&fit=crop'
+        name: 'Caminhada ou Elíptica Ligeira',
+        durationOrReps: '5 min • Ritmo suave',
+        muscleFocus: 'Frequência Cardíaca & Aquecimento',
+        image: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?q=80&w=400&auto=format&fit=crop'
       },
       {
         id: 'wd-2',
-        name: 'Círculos com os Braços e Rotações',
-        durationOrReps: '30 seg cada sentido',
-        muscleFocus: 'Manguito Rotador & Ombros',
+        name: 'Mobilidade Torácica e Ombros',
+        durationOrReps: '60 seg • Movimento controlado',
+        muscleFocus: 'Coluna & Ombros',
         image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=400&auto=format&fit=crop'
       },
       {
         id: 'wd-3',
-        name: 'Ativação com Saltos Suaves no Lugar',
-        durationOrReps: '45 segundos',
-        muscleFocus: 'Frequência Cardíaca & Aquecimento',
-        image: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?q=80&w=400&auto=format&fit=crop'
+        name: 'Séries de Aproximação do 1.º Exercício',
+        durationOrReps: '2 × 12 reps • 40% da carga',
+        muscleFocus: 'Ativação Neuromuscular',
+        image: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=400&auto=format&fit=crop'
       }
     ]
   }

@@ -13,6 +13,7 @@ export interface DietPlan {
   proteinGrams: number;
   carbsGrams: number;
   fatGrams: number;
+  note?: PtDietNote;
 }
 
 export interface DietNoteAttachment {
@@ -45,6 +46,13 @@ export const ASSIGNED_DIET_PLANS: DietPlan[] = [
     proteinGrams: 185,
     carbsGrams: 285,
     fatGrams: 68,
+    note: {
+      id: 'pt-note-treino',
+      author: 'Coach André · Nutrição',
+      updatedAt: '16 Nov 2026',
+      message:
+        'Priorizar a refeição pré-treino 60 a 90 minutos antes da sessão e garantir os hidratos no pós-treino para recuperação muscular. Manter 5g de creatina diária e mínimo de 3L de água.',
+    },
   },
   {
     id: 'plan-descanso',
@@ -55,6 +63,13 @@ export const ASSIGNED_DIET_PLANS: DietPlan[] = [
     proteinGrams: 175,
     carbsGrams: 170,
     fatGrams: 74,
+    note: {
+      id: 'pt-note-descanso',
+      author: 'Coach André · Nutrição',
+      updatedAt: '16 Nov 2026',
+      message:
+        'Redução ligeira de hidratos com foco em proteína distribuída ao longo do dia e gorduras saudáveis para otimizar a recuperação. Manter a hidratação acima de 2,5L e a toma diária de creatina.',
+    },
   },
 ];
 

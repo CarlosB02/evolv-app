@@ -184,6 +184,7 @@ export function Dieta() {
     return (
       <RefeicoesView
         planName={selectedPlan.name}
+        planNote={selectedPlan.note ?? PT_DIET_NOTE}
         onBack={() => setSelectedPlan(null)}
         onSelectMeal={(mealName) => setSelectedMeal(mealName)}
       />

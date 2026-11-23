@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   ChevronLeft, 
   Flame, 
@@ -13,8 +14,8 @@ import {
   Moon,
   Bell, 
   Plus, 
-  Calendar, 
   FileText, 
+  Paperclip,
   X,
   ShoppingCart
 } from 'lucide-react';
@@ -24,6 +25,7 @@ import {
   ShoppingListModal,
   getInitialShoppingIngredients,
 } from '../components/diet/ShoppingListModal';
+import { PT_DIET_NOTE, PtDietNote } from '../data/dietPlansData';
 
 export interface RefeicaoItem {
   id: string;
@@ -41,10 +43,12 @@ interface RefeicoesViewProps {
   onBack: () => void;
   onSelectMeal: (mealName: string) => void;
   planName?: string;
+  planNote?: PtDietNote | null;
 }
 
-export function RefeicoesView({ onBack, onSelectMeal, planName }: RefeicoesViewProps) {
+export function RefeicoesView({ onBack, onSelectMeal, planName, planNote }: RefeicoesViewProps) {
   const { openNotifications, totalUnreadCount } = useNotifications();
+  const activeNote = planNote ?? PT_DIET_NOTE;
   const planStorageKey = `evolv_shopping_list_${(planName || 'default').toLowerCase().replace(/\s+/g, '_')}`;
 
   const [shoppingItems, setShoppingItems] = useState<ShoppingIngredient[]>(() => {
@@ -153,8 +157,6 @@ export function RefeicoesView({ onBack, onSelectMeal, planName }: RefeicoesViewP
   const [sortOrder, setSortOrder] = useState<'time' | 'calories'>('time');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
-  const [isCheatMealModalOpen, setIsCheatMealModalOpen] = useState(false);
-  const [notes, setNotes] = useState('');
   
   const [newMealData, setNewMealData] = useState({
     name: '',
@@ -388,61 +390,43 @@ export function RefeicoesView({ onBack, onSelectMeal, planName }: RefeicoesViewP
         <span>Adicionar refeição</span>
       </button>
 
-      {/* 5. BLOCOS INFERIORES: REFEIÇÃO LIVRE & NOTAS */}
-      <div className="grid grid-cols-2 gap-3 mt-1">
-        {/* Bloco Refeição Livre */}
-        <div 
-          onClick={() => setIsCheatMealModalOpen(true)}
-          className="bg-[#0a0a0a] border border-zinc-800/60 rounded-[20px] p-3 flex items-center gap-2.5 cursor-pointer group hover:border-zinc-700/80 transition-colors"
-        >
-          <div className="w-12 h-12 rounded-[14px] overflow-hidden shrink-0 bg-zinc-900 border border-zinc-800/60">
-            <img 
-              src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=300&auto=format&fit=crop" 
-              alt="Refeição livre" 
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            />
-          </div>
-
-          <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
-            <div className="flex items-center gap-1 flex-wrap">
-              <span className="text-white font-semibold text-[11px] leading-tight truncate">Refeição livre</span>
-              <span className="bg-orange-500/10 text-orange-400 border border-orange-500/30 text-[8px] font-medium px-1 rounded-full whitespace-nowrap">
-                1x por semana
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1 text-zinc-400 text-[9px]">
-              <Calendar className="w-2.5 h-2.5 text-amber-400 shrink-0" />
-              <span className="truncate">Planeada p/ sábado</span>
-            </div>
-
-            <div className="flex items-center gap-1 text-zinc-400 text-[9px]">
-              <Flame className="w-2.5 h-2.5 text-orange-500 shrink-0" />
-              <span>1.500 kcal</span>
-            </div>
-          </div>
-
-          <ChevronRight className="w-3.5 h-3.5 text-zinc-600 shrink-0 group-hover:text-orange-500 transition-colors" />
-        </div>
-
-        {/* Bloco Notas */}
-        <div 
+      {/* 5. BLOCO INFERIOR: NOTAS DO PT / NUTRICIONISTA (APENAS LEITURA) */}
+      {activeNote && (
+        <button
+          type="button"
           onClick={() => setIsNotesModalOpen(true)}
-          className="bg-[#0a0a0a] border border-zinc-800/60 rounded-[20px] p-3 flex items-center justify-between cursor-pointer group hover:border-zinc-700/80 transition-colors"
+          className="w-full mt-1 rounded-[20px] bg-[#0a0a0a] hover:bg-zinc-900/60 border border-zinc-800/80 hover:border-[#F77F00]/50 px-4 py-3.5 flex items-center justify-between gap-3 text-left transition-colors cursor-pointer group"
         >
-          <div className="flex flex-col justify-center gap-1.5 min-w-0">
-            <div className="flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-[#F77F00]" />
-              <span className="text-white font-semibold text-[12px]">Notas</span>
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <FileText
+              className="w-4 h-4 text-[#F77F00] shrink-0 mt-0.5"
+              strokeWidth={2.2}
+            />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[13px] font-bold text-white leading-tight">
+                  Notas
+                </span>
+                <span className="text-[11px] text-zinc-500 truncate">
+                  · {activeNote.author}
+                </span>
+                {activeNote.attachments && activeNote.attachments.length > 0 && (
+                  <Paperclip
+                    className="w-3 h-3 text-zinc-400 group-hover:text-[#F77F00] shrink-0 transition-colors"
+                    strokeWidth={2}
+                    aria-label="Contém anexo"
+                  />
+                )}
+              </div>
+              <p className="text-[11.5px] text-zinc-400 line-clamp-2 mt-1 leading-snug">
+                {activeNote.message}
+              </p>
             </div>
-            <span className="text-zinc-500 text-[10px] truncate">
-              {notes ? notes : 'Sem notas adicionadas'}
-            </span>
           </div>
 
-          <ChevronRight className="w-3.5 h-3.5 text-zinc-600 shrink-0 group-hover:text-orange-500 transition-colors ml-1" />
-        </div>
-      </div>
+          <ChevronRight className="w-4 h-4 text-[#F77F00] shrink-0 group-hover:translate-x-0.5 transition-transform" />
+        </button>
+      )}
       </div>
 
       {/* MODAL ADICIONAR REFEIÇÃO */}
@@ -533,83 +517,86 @@ export function RefeicoesView({ onBack, onSelectMeal, planName }: RefeicoesViewP
         </div>
       )}
 
-      {/* MODAL NOTAS */}
-      {isNotesModalOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-5 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#0a0a0a] border border-zinc-800/80 rounded-[24px] w-full max-w-[340px] p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-orange-500" />
-                <h3 className="text-white font-semibold text-[16px]">Notas da Dieta</h3>
-              </div>
-              <button onClick={() => setIsNotesModalOpen(false)} className="text-zinc-500 hover:text-white transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-zinc-400 text-[12px] mb-3">
-              Indicações do nutricionista ou lembretes pessoais:
-            </p>
-
-            <textarea 
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder="Ex: Beber 3L de água por dia. Suplementar creatina após o treino..."
-              rows={4}
-              className="w-full bg-black border border-zinc-800 rounded-[12px] p-3 text-white text-[13px] focus:outline-none focus:border-orange-500/50 resize-none mb-4"
-            />
-
-            <button 
-              onClick={() => setIsNotesModalOpen(false)}
-              className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium text-[13px] py-2.5 rounded-[12px] transition-colors cursor-pointer"
+      {/* SHEET DE LEITURA DAS NOTAS DO PT / NUTRICIONISTA */}
+      {isNotesModalOpen &&
+        activeNote &&
+        createPortal(
+          <div
+            className="fixed sm:absolute inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200"
+            onClick={() => setIsNotesModalOpen(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#111111] border border-zinc-800 rounded-t-[28px] sm:rounded-[24px] w-full max-w-[420px] max-h-[85dvh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200 overflow-hidden"
             >
-              Guardar Notas
-            </button>
-          </div>
-        </div>
-      )}
+              {/* Cabeçalho */}
+              <div className="px-5 pt-4 pb-3 border-b border-zinc-800/80 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <FileText className="w-5 h-5 text-[#F77F00]" />
+                  <h3 className="text-base font-bold text-white tracking-tight">
+                    Notas{planName ? ` · ${planName}` : ''}
+                  </h3>
+                </div>
 
-      {/* MODAL REFEIÇÃO LIVRE */}
-      {isCheatMealModalOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-5 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#0a0a0a] border border-zinc-800/80 rounded-[24px] w-full max-w-[340px] p-6 shadow-2xl animate-in zoom-in-95 duration-200 text-center">
-            <div className="w-16 h-16 rounded-full overflow-hidden mx-auto mb-3 border-2 border-orange-500/40">
-              <img 
-                src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=300&auto=format&fit=crop" 
-                alt="Burger" 
-                className="w-full h-full object-cover"
-              />
+                <button
+                  type="button"
+                  onClick={() => setIsNotesModalOpen(false)}
+                  aria-label="Fechar"
+                  className="min-w-[40px] min-h-[40px] flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Mensagem do PT / Nutricionista (apenas leitura) */}
+              <div className="p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-4 overflow-y-auto hide-scrollbar">
+                <div className="flex items-center gap-2 text-xs text-zinc-400">
+                  <span className="font-semibold text-white">
+                    {activeNote.author}
+                  </span>
+                  <span aria-hidden="true">·</span>
+                  <span>{activeNote.updatedAt}</span>
+                </div>
+
+                <div className="rounded-2xl bg-[#0a0a0a] border border-zinc-800/80 p-4">
+                  <p className="text-sm text-zinc-200 leading-relaxed whitespace-pre-wrap">
+                    {activeNote.message}
+                  </p>
+                </div>
+
+                {activeNote.attachments && activeNote.attachments.length > 0 && (
+                  <div className="space-y-2">
+                    {activeNote.attachments.map((att) => (
+                      <div
+                        key={att.id}
+                        className="flex items-center gap-3 px-3.5 py-3 rounded-2xl bg-[#0a0a0a] border border-zinc-800/80"
+                      >
+                        <Paperclip className="w-4 h-4 text-[#F77F00] shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-semibold text-white truncate">
+                            {att.name}
+                          </p>
+                          <p className="text-[11px] text-zinc-400 mt-0.5">
+                            {att.sizeLabel}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsNotesModalOpen(false)}
+                  className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-[#F77F00] hover:bg-[#e57300] text-white text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
-
-            <h3 className="text-white font-bold text-[16px] mb-1">Refeição Livre</h3>
-            <span className="inline-block bg-orange-500/10 text-orange-400 border border-orange-500/30 text-[10px] font-medium px-2 py-0.5 rounded-full mb-3">
-              1x por semana autorizada
-            </span>
-
-            <div className="bg-black/60 rounded-[14px] p-3 border border-zinc-800/60 text-left mb-4 flex flex-col gap-2">
-              <div className="flex justify-between items-center text-[12px]">
-                <span className="text-zinc-400">Dia planeado:</span>
-                <span className="text-white font-semibold">Sábado à noite</span>
-              </div>
-              <div className="flex justify-between items-center text-[12px]">
-                <span className="text-zinc-400">Limite calórico aprox:</span>
-                <span className="text-orange-500 font-semibold">1.500 kcal</span>
-              </div>
-              <div className="flex justify-between items-center text-[12px]">
-                <span className="text-zinc-400">Dica do coach:</span>
-                <span className="text-zinc-300">Aproveita sem culpa e hidrata-te bem!</span>
-              </div>
-            </div>
-
-            <button 
-              onClick={() => setIsCheatMealModalOpen(false)}
-              className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium text-[13px] py-2.5 rounded-[12px] transition-colors cursor-pointer"
-            >
-              Fechar
-            </button>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.querySelector('.app-device-wrapper') || document.body
+        )}
       {/* MODAL LISTA DE COMPRAS */}
       <ShoppingListModal
         isOpen={isShoppingListOpen}
